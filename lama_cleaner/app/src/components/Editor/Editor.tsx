@@ -18,6 +18,7 @@ import {
 } from 'react-zoom-pan-pinch'
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
 import { useWindowSize, useKey, useKeyPressEvent } from 'react-use'
+import { useTranslation } from 'react-i18next'
 import inpaint, { downloadToOutput, runPlugin } from '../../adapters/inpainting'
 import Button from '../shared/Button'
 import Slider from './Slider'
@@ -118,6 +119,8 @@ export default function Editor() {
   const [seedVal, setSeed] = useRecoilState(seedState)
   const croperRect = useRecoilValue(croperState)
   const setToastState = useSetRecoilState(toastState)
+  const { t } = useTranslation('errors')
+  const { t: tEditor } = useTranslation('editor')
   const [isInpainting, setIsInpainting] = useRecoilState(isInpaintingState)
   const setIsPluginRunning = useSetRecoilState(isPluginRunningState)
   const isProcessing = useRecoilValue(isProcessingState)
@@ -396,7 +399,7 @@ export default function Editor() {
           paintByExampleImage
         )
         if (!res) {
-          throw new Error('Something went wrong on server side.')
+          throw new Error(t('processing.serverError') as string)
         }
         const { blob, seed } = res
         if (seed) {
@@ -465,7 +468,7 @@ export default function Editor() {
       } else {
         setToastState({
           open: true,
-          desc: 'Please draw mask on picture',
+          desc: t('validation.drawMaskRequired'),
           state: 'error',
           duration: 1500,
         })
@@ -555,7 +558,7 @@ export default function Editor() {
       } else {
         setToastState({
           open: true,
-          desc: 'Please draw mask on picture',
+          desc: t('validation.drawMaskRequired'),
           state: 'error',
           duration: 1500,
         })
@@ -578,7 +581,7 @@ export default function Editor() {
       } else {
         setToastState({
           open: true,
-          desc: 'No mask to reuse',
+          desc: t('validation.noMaskToReuse'),
           state: 'error',
           duration: 1500,
         })
@@ -622,7 +625,7 @@ export default function Editor() {
         const targetFile = await getCurrentRender()
         const res = await runPlugin(name, targetFile, data?.upscale)
         if (!res) {
-          throw new Error('Something went wrong on server side.')
+          throw new Error(t('processing.serverError') as string)
         }
         const { blob } = res
         const newRender = new Image()
@@ -995,7 +998,7 @@ export default function Editor() {
         newClicks
       )
       if (!res) {
-        throw new Error('Something went wrong on server side.')
+        throw new Error(t('processing.serverError') as string)
       }
       const { blob } = res
       const img = new Image()
@@ -1441,7 +1444,7 @@ export default function Editor() {
           await copyCanvasImage(context?.canvas)
           setToastState({
             open: true,
-            desc: 'Copy inpainting result to clipboard',
+            desc: t('success.copyToClipboard'),
             state: 'success',
             duration: 3000,
           })
@@ -1697,7 +1700,7 @@ export default function Editor() {
 
       <div className="editor-toolkit-panel">
         <Slider
-          label="Brush"
+          label={tEditor('toolbar.brush') as string}
           min={MIN_BRUSH_SIZE}
           max={MAX_BRUSH_SIZE}
           value={brushSize}
@@ -1706,13 +1709,13 @@ export default function Editor() {
         />
         <div className="editor-toolkit-btns">
           <Button
-            toolTip="Reset Zoom & Pan"
+            toolTip={tEditor('toolbar.resetZoom') as string}
             icon={<ArrowsPointingOutIcon />}
             disabled={scale === minScale && panned === false}
             onClick={resetZoom}
           />
           <Button
-            toolTip="Undo"
+            toolTip={tEditor('toolbar.undo') as string}
             icon={
               <svg
                 width="19"
@@ -1731,7 +1734,7 @@ export default function Editor() {
             disabled={disableUndo()}
           />
           <Button
-            toolTip="Redo"
+            toolTip={tEditor('toolbar.redo') as string}
             icon={
               <svg
                 width="19"
@@ -1751,7 +1754,7 @@ export default function Editor() {
             disabled={disableRedo()}
           />
           <Button
-            toolTip="Show Original"
+            toolTip={tEditor('toolbar.showOriginal') as string}
             icon={<EyeIcon />}
             className={showOriginal ? 'eyeicon-active' : ''}
             onDown={ev => {
@@ -1772,7 +1775,7 @@ export default function Editor() {
             disabled={renders.length === 0}
           />
           <Button
-            toolTip="Save Image"
+            toolTip={tEditor('toolbar.saveImage') as string}
             icon={<ArrowDownTrayIcon />}
             disabled={!renders.length}
             onClick={download}
@@ -1780,7 +1783,7 @@ export default function Editor() {
 
           {settings.runInpaintingManually && !isDiffusionModels && (
             <Button
-              toolTip="Run Inpainting"
+              toolTip={tEditor('toolbar.runInpainting') as string}
               icon={
                 <svg
                   width="24"

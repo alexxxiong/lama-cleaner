@@ -1,0 +1,60 @@
+{
+  "tools": {
+    "brush": "画笔",
+    "eraser": "橡皮擦",
+    "zoom": "缩放",
+    "pan": "平移",
+    "resetZoomPan": "重置缩放和平移",
+    "showOriginal": "显示原图",
+    "download": "下载",
+    "interactiveSeg": "交互式分割"
+  },
+  "toolbar": {
+    "resetZoom": "重置缩放和平移",
+    "undo": "撤销",
+    "redo": "重做",
+    "showOriginal": "显示原图",
+    "saveImage": "保存图像",
+    "runInpainting": "运行修复",
+    "brush": "画笔"
+  },
+  "messages": {
+    "drawMask": "请在图片上绘制蒙版",
+    "processingImage": "正在处理图像...",
+    "generatingMask": "正在生成蒙版...",
+    "clickToSeg": "点击进行分割",
+    "aiModelLoading": "AI 模型加载中..."
+  },
+  "sidebar": {
+    "brushSize": "画笔大小",
+    "manualMode": "手动模式",
+    "paintByExample": "参考图绘制",
+    "clickToAddPoint": "点击添加正向点",
+    "clickToRemoveArea": "点击移除区域",
+    "configurations": "配置",
+    "config": "配置",
+    "controlNet": "ControlNet",
+    "controlNetWeight": "ControlNet 权重",
+    "controlNetWeightDesc": "如果文本提示与控制图像之间存在很大的不匹配，请降低此值",
+    "croper": "裁剪器",
+    "steps": "步数",
+    "stepsDesc": "去噪步数。更多的去噪步骤通常会导致更高质量的图像，但推理速度会更慢。",
+    "guidanceScale": "引导系数",
+    "guidanceScaleDesc": "更高的引导系数鼓励生成与文本提示紧密相关的图像，通常以图像质量较低为代价。",
+    "maskBlur": "蒙版模糊",
+    "maskBlurDesc": "模糊蒙版区域的边缘。数值越高，与原图的融合越平滑",
+    "matchHistograms": "匹配直方图",
+    "matchHistogramsDesc": "将修复结果直方图与源图像直方图匹配，会改善某些图像的修复质量。",
+    "sampler": "采样器",
+    "seed": "种子",
+    "negativePrompt": "负向提示词"
+  },
+  "interactiveSeg": {
+    "cancel": "取消",
+    "accept": "接受",
+    "maskExists": "蒙版已存在",
+    "maskExistsDesc": "您想移除它还是创建一个新的？",
+    "remove": "移除",
+    "createNew": "创建新的"
+  }
+}

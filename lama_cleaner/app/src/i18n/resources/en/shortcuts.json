@@ -1,0 +1,52 @@
+{
+  "title": "Keyboard Shortcuts",
+  "hotkeys": "Hotkeys",
+  "general": {
+    "title": "General",
+    "undo": "Undo",
+    "redo": "Redo",
+    "acceptInpainting": "Accept Inpainting",
+    "cancelInpainting": "Cancel Inpainting",
+    "save": "Save Image"
+  },
+  "editor": {
+    "title": "Editor",
+    "pan": "Pan",
+    "decreaseBrushSize": "Decrease Brush Size",
+    "increaseBrushSize": "Increase Brush Size",
+    "toggleOriginal": "Toggle Original",
+    "resetZoom": "Reset Zoom"
+  },
+  "view": {
+    "title": "View",
+    "toggleSettings": "Toggle Settings",
+    "toggleShortcuts": "Toggle Shortcuts",
+    "toggleTheme": "Toggle Theme"
+  },
+  "drawing": {
+    "title": "Drawing",
+    "freeDrawing": "Free Drawing",
+    "multiStrokeDrawing": "Multi-Stroke Drawing",
+    "rectangleDrawing": "Rectangle Drawing"
+  },
+  "shortcuts": {
+    "pan": "Pan",
+    "resetZoomPan": "Reset Zoom/Pan",
+    "decreaseBrushSize": "Decrease Brush Size",
+    "increaseBrushSize": "Increase Brush Size",
+    "viewOriginalImage": "View Original Image",
+    "multiStrokeDrawing": "Multi-Stroke Drawing",
+    "cancelDrawing": "Cancel Drawing",
+    "rerunLastMask": "Rerun last mask",
+    "undo": "Undo",
+    "redo": "Redo",
+    "copyResult": "Copy Result",
+    "pasteImage": "Paste Image",
+    "triggerManualInpainting": "Trigger Manually Inpainting",
+    "triggerInteractiveSeg": "Trigger Interactive Segmentation",
+    "switchTheme": "Switch Theme",
+    "toggleHotkeysDialog": "Toggle Hotkeys Dialog",
+    "toggleSettingsDialog": "Toggle Settings Dialog",
+    "toggleFileManager": "Toggle File Manager"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "fileUpload": {
+    "sizeTooLarge": "文件大小超过 {{maxSize}}",
+    "invalidFormat": "请上传图片文件",
+    "uploadFailed": "文件上传失败",
+    "multipleFiles": "请只拖放一个文件",
+    "noFileSelected": "未选择文件",
+    "dragImageFile": "请拖放图片文件"
+  },
+  "processing": {
+    "failed": "处理失败",
+    "timeout": "处理超时",
+    "modelLoadFailed": "AI 模型加载失败",
+    "outOfMemory": "内存不足",
+    "serverError": "服务器端出现错误"
+  },
+  "network": {
+    "connectionFailed": "连接失败",
+    "serverError": "服务器错误",
+    "requestTimeout": "请求超时"
+  },
+  "validation": {
+    "invalidInput": "输入无效",
+    "maskRequired": "需要蒙版",
+    "imageRequired": "需要图片",
+    "drawMaskRequired": "请在图片上绘制蒙版",
+    "noMaskToReuse": "没有可重用的蒙版"
+  },
+  "success": {
+    "copyToClipboard": "修复结果已复制到剪贴板",
+    "downloadComplete": "下载成功",
+    "gifSaved": "GIF 保存成功"
+  },
+  "language": {
+    "changeFailed": "语言切换失败"
+  },
+  "gif": {
+    "createFailed": "创建 GIF 失败"
+  }
+}

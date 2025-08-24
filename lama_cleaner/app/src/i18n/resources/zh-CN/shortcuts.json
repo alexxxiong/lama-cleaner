@@ -1,0 +1,52 @@
+{
+  "title": "键盘快捷键",
+  "hotkeys": "快捷键",
+  "general": {
+    "title": "常规",
+    "undo": "撤销",
+    "redo": "重做",
+    "acceptInpainting": "接受修复",
+    "cancelInpainting": "取消修复",
+    "save": "保存图片"
+  },
+  "editor": {
+    "title": "编辑器",
+    "pan": "平移",
+    "decreaseBrushSize": "减小画笔大小",
+    "increaseBrushSize": "增大画笔大小",
+    "toggleOriginal": "切换原图",
+    "resetZoom": "重置缩放"
+  },
+  "view": {
+    "title": "视图",
+    "toggleSettings": "切换设置",
+    "toggleShortcuts": "切换快捷键",
+    "toggleTheme": "切换主题"
+  },
+  "drawing": {
+    "title": "绘制",
+    "freeDrawing": "自由绘制",
+    "multiStrokeDrawing": "多笔绘制",
+    "rectangleDrawing": "矩形绘制"
+  },
+  "shortcuts": {
+    "pan": "平移",
+    "resetZoomPan": "重置缩放/平移",
+    "decreaseBrushSize": "减小画笔大小",
+    "increaseBrushSize": "增大画笔大小",
+    "viewOriginalImage": "查看原图",
+    "multiStrokeDrawing": "多笔绘制",
+    "cancelDrawing": "取消绘制",
+    "rerunLastMask": "重新运行上次蒙版",
+    "undo": "撤销",
+    "redo": "重做",
+    "copyResult": "复制结果",
+    "pasteImage": "粘贴图像",
+    "triggerManualInpainting": "触发手动修复",
+    "triggerInteractiveSeg": "触发交互式分割",
+    "switchTheme": "切换主题",
+    "toggleHotkeysDialog": "切换快捷键对话框",
+    "toggleSettingsDialog": "切换设置对话框",
+    "toggleFileManager": "切换文件管理器"
+  }
+}

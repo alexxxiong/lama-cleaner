@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import Button from '../shared/Button'
 import Modal from '../shared/Modal'
 
@@ -11,17 +12,18 @@ interface Props {
 
 const InteractiveSegReplaceModal = (props: Props) => {
   const { show, onClose, onCleanClick, onReplaceClick } = props
+  const { t } = useTranslation('editor')
 
   return (
     <Modal
       onClose={onClose}
-      title="Mask exists"
+      title={t('interactiveSeg.maskExists') as string}
       className="modal-setting"
       show={show}
       showCloseIcon
     >
       <h4 style={{ lineHeight: '24px' }}>
-        Do you want to remove it or create a new one?
+        {t('interactiveSeg.maskExistsDesc')}
       </h4>
       <div
         style={{
@@ -38,10 +40,10 @@ const InteractiveSegReplaceModal = (props: Props) => {
             onCleanClick()
           }}
         >
-          Remove
+          {t('interactiveSeg.remove')}
         </Button>
         <Button onClick={onReplaceClick} border>
-          Create a new one
+          {t('interactiveSeg.createNew')}
         </Button>
       </div>
     </Modal>

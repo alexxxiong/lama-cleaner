@@ -3,6 +3,7 @@ import { useRecoilState, useRecoilValue } from 'recoil'
 import * as PopoverPrimitive from '@radix-ui/react-popover'
 import { useToggle } from 'react-use'
 import { UploadIcon } from '@radix-ui/react-icons'
+import { useTranslation } from 'react-i18next'
 import {
   isInpaintingState,
   paintByExampleImageState,
@@ -21,6 +22,7 @@ const INPUT_WIDTH = 30
 const PESidePanel = () => {
   const [open, toggleOpen] = useToggle(true)
   const [setting, setSettingState] = useRecoilState(settingState)
+  const { t } = useTranslation('editor')
   const [paintByExampleImage, setPaintByExampleImage] = useRecoilState(
     paintByExampleImageState
   )
@@ -32,6 +34,7 @@ const PESidePanel = () => {
 
   const renderUploadIcon = () => {
     return (
+      // eslint-disable-next-line jsx-a11y/label-has-associated-control
       <label htmlFor={uploadElemId}>
         <Button
           border
@@ -64,7 +67,7 @@ const PESidePanel = () => {
           className="btn-primary side-panel-trigger"
           onClick={() => toggleOpen()}
         >
-          Configurations
+          {t('sidebar.configurations')}
         </PopoverPrimitive.Trigger>
         <PopoverPrimitive.Portal>
           <PopoverPrimitive.Content className="side-panel-content">

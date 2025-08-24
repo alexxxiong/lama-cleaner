@@ -1,5 +1,6 @@
 import React, { FormEvent } from 'react'
 import { useRecoilState, useRecoilValue } from 'recoil'
+import { useTranslation } from 'react-i18next'
 import * as PopoverPrimitive from '@radix-ui/react-popover'
 import { useToggle } from 'react-use'
 import {
@@ -24,6 +25,7 @@ const INPUT_WIDTH = 30
 const SidePanel = () => {
   const [open, toggleOpen] = useToggle(true)
   const [setting, setSettingState] = useRecoilState(settingState)
+  const { t } = useTranslation('editor')
   const [negativePrompt, setNegativePrompt] =
     useRecoilState(negativePropmtState)
   const isInpainting = useRecoilValue(isInpaintingState)
@@ -53,7 +55,7 @@ const SidePanel = () => {
       <>
         <SettingBlock
           className="sub-setting-block"
-          title="ControlNet"
+          title={t('sidebar.controlNet') as string}
           input={
             <Selector
               width={80}
@@ -70,11 +72,11 @@ const SidePanel = () => {
         />
 
         <NumberInputSetting
-          title="ControlNet Weight"
+          title={t('sidebar.controlNetWeight') as string}
           width={INPUT_WIDTH}
           allowFloat
           value={`${setting.controlnetConditioningScale}`}
-          desc="Lowered this value if there is a big misalignment between the text prompt and the control image"
+          desc={t('sidebar.controlNetWeightDesc') as string}
           onValue={value => {
             const val = value.length === 0 ? 0 : parseFloat(value)
             setSettingState(old => {
@@ -93,14 +95,14 @@ const SidePanel = () => {
           className="btn-primary side-panel-trigger"
           onClick={() => toggleOpen()}
         >
-          Config
+          {t('sidebar.config')}
         </PopoverPrimitive.Trigger>
         <PopoverPrimitive.Portal>
           <PopoverPrimitive.Content className="side-panel-content">
             {isControlNet && renderConterNetSetting()}
 
             <SettingBlock
-              title="Croper"
+              title={t('sidebar.croper') as string}
               input={
                 <Switch
                   checked={setting.showCroper}
@@ -132,10 +134,10 @@ const SidePanel = () => {
             /> */}
 
             <NumberInputSetting
-              title="Steps"
+              title={t('sidebar.steps') as string}
               width={INPUT_WIDTH}
               value={`${setting.sdSteps}`}
-              desc="The number of denoising steps. More denoising steps usually lead to a higher quality image at the expense of slower inference."
+              desc={t('sidebar.stepsDesc') as string}
               onValue={value => {
                 const val = value.length === 0 ? 0 : parseInt(value, 10)
                 setSettingState(old => {
@@ -145,11 +147,11 @@ const SidePanel = () => {
             />
 
             <NumberInputSetting
-              title="Guidance Scale"
+              title={t('sidebar.guidanceScale') as string}
               width={INPUT_WIDTH}
               allowFloat
               value={`${setting.sdGuidanceScale}`}
-              desc="Higher guidance scale encourages to generate images that are closely linked to the text prompt, usually at the expense of lower image quality."
+              desc={t('sidebar.guidanceScaleDesc') as string}
               onValue={value => {
                 const val = value.length === 0 ? 0 : parseFloat(value)
                 setSettingState(old => {
@@ -159,10 +161,10 @@ const SidePanel = () => {
             />
 
             <NumberInputSetting
-              title="Mask Blur"
+              title={t('sidebar.maskBlur') as string}
               width={INPUT_WIDTH}
               value={`${setting.sdMaskBlur}`}
-              desc="Blur the edge of mask area. The higher the number the smoother blend with the original image"
+              desc={t('sidebar.maskBlurDesc') as string}
               onValue={value => {
                 const val = value.length === 0 ? 0 : parseInt(value, 10)
                 setSettingState(old => {
@@ -172,8 +174,8 @@ const SidePanel = () => {
             />
 
             <SettingBlock
-              title="Match Histograms"
-              desc="Match the inpainting result histogram to the source image histogram, will improves the inpainting quality for some images."
+              title={t('sidebar.matchHistograms') as string}
+              desc={t('sidebar.matchHistogramsDesc') as string}
               input={
                 <Switch
                   checked={setting.sdMatchHistograms}
@@ -190,7 +192,7 @@ const SidePanel = () => {
 
             <SettingBlock
               className="sub-setting-block"
-              title="Sampler"
+              title={t('sidebar.sampler') as string}
               input={
                 <Selector
                   width={80}
@@ -207,7 +209,7 @@ const SidePanel = () => {
             />
 
             <SettingBlock
-              title="Seed"
+              title={t('sidebar.seed') as string}
               input={
                 <div
                   style={{
@@ -248,7 +250,7 @@ const SidePanel = () => {
 
             <SettingBlock
               className="sub-setting-block"
-              title="Negative prompt"
+              title={t('sidebar.negativePrompt') as string}
               layout="v"
               input={
                 <TextAreaInput

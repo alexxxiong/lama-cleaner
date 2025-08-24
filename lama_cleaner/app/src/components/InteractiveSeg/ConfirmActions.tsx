@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useRecoilState, useRecoilValue } from 'recoil'
+import { useTranslation } from 'react-i18next'
 import {
   interactiveSegClicksState,
   isInteractiveSegRunningState,
@@ -14,6 +15,7 @@ interface Props {
 
 const InteractiveSegConfirmActions = (props: Props) => {
   const { onCancelClick, onAcceptClick } = props
+  const { t } = useTranslation('editor')
 
   const [isInteractiveSeg, setIsInteractiveSeg] = useRecoilState(
     isInteractiveSegState
@@ -43,7 +45,7 @@ const InteractiveSegConfirmActions = (props: Props) => {
             onCancelClick()
           }}
         >
-          Cancel
+          {t('interactiveSeg.cancel')}
         </Button>
         <Button
           border
@@ -52,7 +54,7 @@ const InteractiveSegConfirmActions = (props: Props) => {
             onAcceptClick()
           }}
         >
-          Accept
+          {t('interactiveSeg.accept')}
         </Button>
       </div>
     </div>

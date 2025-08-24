@@ -1,0 +1,81 @@
+{
+  "title": "设置",
+  "tabs": {
+    "model": "模型",
+    "general": "常规",
+    "advanced": "高级"
+  },
+  "model": {
+    "selectModel": "选择 AI 模型",
+    "device": "设备",
+    "enableControlNet": "启用 ControlNet",
+    "controlNetMethod": "ControlNet 方法",
+    "switchModel": "切换模型",
+    "downloadingModel": "正在下载模型...",
+    "switchingTo": "正在切换到 {{model}} 模型",
+    "downloading": "正在下载 {{model}} 模型，这可能需要一些时间",
+    "switchSuccess": "成功切换到 {{model}} 模型",
+    "switchFailed": "切换到 {{model}} 模型失败"
+  },
+  "general": {
+    "theme": "主题",
+    "themeOptions": {
+      "light": "浅色",
+      "dark": "深色",
+      "system": "跟随系统"
+    },
+    "language": "语言",
+    "enableFileManager": "启用文件管理器",
+    "inputDirectory": "输入目录",
+    "outputDirectory": "输出目录"
+  },
+  "advanced": {
+    "enableAutoSaving": "启用自动保存",
+    "enableDownloadMask": "启用下载蒙版",
+    "enableManualInpainting": "启用手动修复",
+    "enableUploadMask": "启用上传蒙版",
+    "quality": "质量",
+    "graduallyInpainting": "渐进式修复",
+    "graduallyInpaintingDesc": "如果勾选，将在上一次结果上进行修复，否则始终在原始图像上运行模型。",
+    "downloadMask": "下载蒙版",
+    "downloadMaskDesc": "下载修复结果和蒙版",
+    "manualInpaintingMode": "手动修复模式"
+  },
+  "parameters": {
+    "steps": "步数",
+    "stepsDesc": "步数越大结果越好，但耗时更长",
+    "guidanceScale": "引导强度",
+    "strength": "强度",
+    "sampler": "采样器",
+    "seed": "种子",
+    "maskBlur": "蒙版模糊",
+    "matchHistograms": "匹配直方图",
+    "wireframe": "线框",
+    "wireframeDesc": "启用边缘和线条检测",
+    "radius": "半径",
+    "radiusDesc": "算法考虑的每个修复点的圆形邻域半径。",
+    "flag": "标志",
+    "flagDesc": "修复方法",
+    "sizeLimit": "大小限制",
+    "triggerSize": "触发大小",
+    "cropMargin": "裁剪边距",
+    "strategy": "策略"
+  },
+  "hd": {
+    "strategy": "策略",
+    "strategies": {
+      "original": "原始",
+      "resize": "调整大小",
+      "crop": "裁剪"
+    },
+    "originalDesc": "使用原始图片，适合2K以下尺寸的图片。如果效果不好或有GPU内存问题，请尝试",
+    "originalDescOr": "或",
+    "originalDescEnd": "。",
+    "resizeDesc": "将图像较长边调整到特定大小，然后在调整后的图像上进行修复。",
+    "cropDesc": "从原始图像中裁剪蒙版区域进行修复。",
+    "sizeLimit": "大小限制",
+    "triggerSize": "触发大小",
+    "cropMargin": "裁剪边距",
+    "pixel": "像素"
+  }
+}

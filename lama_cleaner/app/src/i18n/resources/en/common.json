@@ -1,0 +1,60 @@
+{
+  "buttons": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "upload": "Upload",
+    "download": "Download",
+    "reset": "Reset",
+    "undo": "Undo",
+    "redo": "Redo",
+    "runInpainting": "Run Inpainting",
+    "accept": "Accept",
+    "confirm": "Confirm"
+  },
+  "navigation": {
+    "fileManager": "File Manager",
+    "settings": "Settings",
+    "shortcuts": "Keyboard Shortcuts",
+    "uploadImage": "Upload image",
+    "uploadMask": "Upload custom mask",
+    "rerunLastMask": "Rerun last mask",
+    "maskShortcut": "M"
+  },
+  "tooltips": {
+    "uploadImage": "Upload image",
+    "uploadMask": "Upload custom mask",
+    "resetZoom": "Reset Zoom & Pan",
+    "showOriginal": "Show Original",
+    "saveImage": "Save Image",
+    "zoomIn": "Zoom In",
+    "zoomOut": "Zoom Out"
+  },
+  "messages": {
+    "clickOrDrag": "Click here or drag an image file",
+    "processing": "Processing...",
+    "loading": "Loading...",
+    "noMaskToReuse": "No mask to reuse"
+  },
+  "landingPage": {
+    "title": "Image inpainting powered by",
+    "clickToUpload": "Click here or drag an image file",
+    "tapToUpload": "Tap here to load your picture",
+    "fileTooLarge": "File too large (max 20MB)",
+    "notAnImage": "Please select an image file"
+  },
+  "fileManager": {
+    "rowsLayout": "Rows layout",
+    "gridLayout": "Grid layout",
+    "searchPlaceholder": "Search by file name",
+    "descendingOrder": "Descending order",
+    "ascendingOrder": "Ascending order",
+    "imageDirectory": "Image Directory",
+    "outputDirectory": "Output Directory",
+    "imagesCount": "Images",
+    "sortBy": {
+      "name": "Name",
+      "createdTime": "Created time",
+      "modifiedTime": "Modified time"
+    }
+  }
+}

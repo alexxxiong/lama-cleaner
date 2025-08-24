@@ -1,0 +1,60 @@
+{
+  "buttons": {
+    "save": "保存",
+    "cancel": "取消",
+    "upload": "上传",
+    "download": "下载",
+    "reset": "重置",
+    "undo": "撤销",
+    "redo": "重做",
+    "runInpainting": "运行修复",
+    "accept": "接受",
+    "confirm": "确认"
+  },
+  "navigation": {
+    "fileManager": "文件管理器",
+    "settings": "设置",
+    "shortcuts": "键盘快捷键",
+    "uploadImage": "上传图片",
+    "uploadMask": "上传自定义蒙版",
+    "rerunLastMask": "重新运行上次蒙版",
+    "maskShortcut": "M"
+  },
+  "tooltips": {
+    "uploadImage": "上传图片",
+    "uploadMask": "上传自定义蒙版",
+    "resetZoom": "重置缩放和平移",
+    "showOriginal": "显示原图",
+    "saveImage": "保存图片",
+    "zoomIn": "放大",
+    "zoomOut": "缩小"
+  },
+  "messages": {
+    "clickOrDrag": "点击这里或拖放图片文件",
+    "processing": "处理中...",
+    "loading": "加载中...",
+    "noMaskToReuse": "没有可重用的蒙版"
+  },
+  "landingPage": {
+    "title": "基于图像修复技术",
+    "clickToUpload": "点击这里或拖放图片文件",
+    "tapToUpload": "点击这里加载您的图片",
+    "fileTooLarge": "文件太大（最大 20MB）",
+    "notAnImage": "请选择图片文件"
+  },
+  "fileManager": {
+    "rowsLayout": "行布局",
+    "gridLayout": "网格布局",
+    "searchPlaceholder": "按文件名搜索",
+    "descendingOrder": "降序",
+    "ascendingOrder": "升序",
+    "imageDirectory": "图像目录",
+    "outputDirectory": "输出目录",
+    "imagesCount": "图像",
+    "sortBy": {
+      "name": "名称",
+      "createdTime": "创建时间",
+      "modifiedTime": "修改时间"
+    }
+  }
+}

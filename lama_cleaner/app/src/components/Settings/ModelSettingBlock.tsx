@@ -1,5 +1,6 @@
 import React, { ReactNode, useEffect, useState } from 'react'
 import { useRecoilState, useRecoilValue } from 'recoil'
+import { useTranslation } from 'react-i18next'
 import {
   AIModel,
   CV2Flag,
@@ -16,6 +17,7 @@ import SettingBlock from './SettingBlock'
 function ModelSettingBlock() {
   const [setting, setSettingState] = useRecoilState(settingState)
   const isDisableModelSwitch = useRecoilValue(isDisableModelSwitchState)
+  const { t } = useTranslation('settings')
 
   const onModelChange = (value: AIModel) => {
     setSettingState(old => {
@@ -37,6 +39,7 @@ function ModelSettingBlock() {
     return (
       <div style={{ display: 'flex', gap: '12px' }}>
         <Tooltip content={githubUrl}>
+          {/* eslint-disable-next-line jsx-a11y/control-has-associated-label */}
           <a
             className="model-desc-link"
             href={githubUrl}
@@ -78,9 +81,9 @@ function ModelSettingBlock() {
     return (
       <>
         <NumberInputSetting
-          title="Steps"
+          title={t('parameters.steps') as string}
           value={`${setting.ldmSteps}`}
-          desc="Large steps result in better result, but more time-consuming"
+          desc={t('parameters.stepsDesc') as string}
           onValue={value => {
             const val = value.length === 0 ? 0 : parseInt(value, 10)
             setSettingState(old => {
@@ -91,7 +94,7 @@ function ModelSettingBlock() {
 
         <SettingBlock
           className="sub-setting-block"
-          title="Sampler"
+          title={t('parameters.sampler') as string}
           input={
             <Selector
               width={80}
@@ -110,8 +113,8 @@ function ModelSettingBlock() {
       <div>
         <SettingBlock
           className="sub-setting-block"
-          title="Wireframe"
-          desc="Enable edge and line detect"
+          title={t('parameters.wireframe') as string}
+          desc={t('parameters.wireframeDesc') as string}
           input={
             <Switch
               checked={setting.zitsWireframe}
@@ -143,9 +146,9 @@ function ModelSettingBlock() {
     return (
       <>
         <NumberInputSetting
-          title="Radius"
+          title={t('parameters.radius') as string}
           value={`${setting.cv2Radius}`}
-          desc="Radius of a circular neighborhood of each point inpainted that is considered by the algorithm."
+          desc={t('parameters.radiusDesc') as string}
           onValue={value => {
             const val = value.length === 0 ? 0 : parseInt(value, 10)
             setSettingState(old => {
@@ -156,8 +159,8 @@ function ModelSettingBlock() {
 
         <SettingBlock
           className="sub-setting-block"
-          title="Flag"
-          desc="Inpainting method"
+          title={t('parameters.flag') as string}
+          desc={t('parameters.flagDesc') as string}
           input={
             <Selector
               width={140}
@@ -278,7 +281,7 @@ function ModelSettingBlock() {
   return (
     <SettingBlock
       className="model-setting-block"
-      title="Model"
+      title={t('tabs.model') as string}
       titleSuffix={renderPaperCodeBadge()}
       input={
         <Selector

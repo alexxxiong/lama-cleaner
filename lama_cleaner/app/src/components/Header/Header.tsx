@@ -3,6 +3,7 @@ import { PlayIcon, ReloadIcon } from '@radix-ui/react-icons'
 import React, { useCallback, useState } from 'react'
 import { useRecoilState, useRecoilValue } from 'recoil'
 import * as PopoverPrimitive from '@radix-ui/react-popover'
+import { useTranslation } from 'react-i18next'
 import {
   enableFileManagerState,
   fileState,
@@ -16,6 +17,7 @@ import {
 import Button from '../shared/Button'
 import Shortcuts from '../Shortcuts/Shortcuts'
 import { ThemeChanger } from './ThemeChanger'
+import LanguageSwitcher from './LanguageSwitcher'
 import SettingIcon from '../Settings/SettingIcon'
 import PromptInput from './PromptInput'
 import CoffeeIcon from '../CoffeeIcon/CoffeeIcon'
@@ -29,6 +31,7 @@ import { useImage } from '../../utils'
 import useHotKey from '../../hooks/useHotkey'
 
 const Header = () => {
+  const { t } = useTranslation('common')
   const isInpainting = useRecoilValue(isInpaintingState)
   const [file, setFile] = useRecoilState(fileState)
   const [mask, setMask] = useRecoilState(maskState)
@@ -92,7 +95,7 @@ const Header = () => {
             <Button
               icon={<FolderIcon />}
               style={{ border: 0 }}
-              toolTip="Open File Manager"
+              toolTip={t('navigation.fileManager') as string}
               disabled={isInpainting}
               onClick={() => {
                 setShowFileManager(true)
@@ -102,12 +105,13 @@ const Header = () => {
             <></>
           )}
 
+          {/* eslint-disable-next-line jsx-a11y/label-has-associated-control */}
           <label htmlFor={uploadElemId}>
             <Button
               icon={<PhotoIcon />}
               style={{ border: 0, gap: 0, padding: 6 }}
               disabled={isInpainting}
-              toolTip="Upload image"
+              toolTip={t('navigation.uploadImage') as string}
             >
               <input
                 style={{ display: 'none' }}
@@ -137,7 +141,7 @@ const Header = () => {
               <Button
                 style={{ border: 0 }}
                 disabled={isInpainting}
-                toolTip="Upload custom mask"
+                toolTip={t('navigation.uploadMask') as string}
               >
                 <input
                   style={{ display: 'none' }}
@@ -169,7 +173,7 @@ const Header = () => {
                     alignItems: 'center',
                   }}
                 >
-                  M
+                  {t('navigation.maskShortcut')}
                 </div>
               </Button>
             </label>
@@ -218,7 +222,7 @@ const Header = () => {
               icon={<ReloadIcon style={{ height: 16, width: 16 }} />}
               style={{ border: 0, gap: 0 }}
               disabled={isInpainting}
-              toolTip="Rerun last mask [r]"
+              toolTip={t('navigation.rerunLastMask') as string}
               onClick={handleRerunLastMask}
               onMouseEnter={onRerunMouseEnter}
               onMouseLeave={onRerunMouseLeave}
@@ -230,6 +234,7 @@ const Header = () => {
 
         <div className="header-icons-wrapper">
           <CoffeeIcon />
+          <LanguageSwitcher />
           <ThemeChanger />
           <div className="header-icons">
             <Shortcuts />

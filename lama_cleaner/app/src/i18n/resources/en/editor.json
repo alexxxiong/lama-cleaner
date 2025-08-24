@@ -1,0 +1,60 @@
+{
+  "tools": {
+    "brush": "Brush",
+    "eraser": "Eraser",
+    "zoom": "Zoom",
+    "pan": "Pan",
+    "resetZoomPan": "Reset Zoom & Pan",
+    "showOriginal": "Show Original",
+    "download": "Download",
+    "interactiveSeg": "Interactive Segmentation"
+  },
+  "toolbar": {
+    "resetZoom": "Reset Zoom & Pan",
+    "undo": "Undo",
+    "redo": "Redo",
+    "showOriginal": "Show Original",
+    "saveImage": "Save Image",
+    "runInpainting": "Run Inpainting",
+    "brush": "Brush"
+  },
+  "messages": {
+    "drawMask": "Please draw mask on picture",
+    "processingImage": "Processing image...",
+    "generatingMask": "Generating mask...",
+    "clickToSeg": "Click to segment",
+    "aiModelLoading": "AI model loading..."
+  },
+  "sidebar": {
+    "brushSize": "Brush Size",
+    "manualMode": "Manual Mode",
+    "paintByExample": "Paint by Example",
+    "clickToAddPoint": "Click to add positive point",
+    "clickToRemoveArea": "Click to remove area",
+    "configurations": "Configurations",
+    "config": "Config",
+    "controlNet": "ControlNet",
+    "controlNetWeight": "ControlNet Weight",
+    "controlNetWeightDesc": "Lowered this value if there is a big misalignment between the text prompt and the control image",
+    "croper": "Croper",
+    "steps": "Steps",
+    "stepsDesc": "The number of denoising steps. More denoising steps usually lead to a higher quality image at the expense of slower inference.",
+    "guidanceScale": "Guidance Scale",
+    "guidanceScaleDesc": "Higher guidance scale encourages to generate images that are closely linked to the text prompt, usually at the expense of lower image quality.",
+    "maskBlur": "Mask Blur",
+    "maskBlurDesc": "Blur the edge of mask area. The higher the number the smoother blend with the original image",
+    "matchHistograms": "Match Histograms",
+    "matchHistogramsDesc": "Match the inpainting result histogram to the source image histogram, will improves the inpainting quality for some images.",
+    "sampler": "Sampler",
+    "seed": "Seed",
+    "negativePrompt": "Negative prompt"
+  },
+  "interactiveSeg": {
+    "cancel": "Cancel",
+    "accept": "Accept",
+    "maskExists": "Mask exists",
+    "maskExistsDesc": "Do you want to remove it or create a new one?",
+    "remove": "Remove",
+    "createNew": "Create a new one"
+  }
+}

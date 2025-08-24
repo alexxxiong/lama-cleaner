@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
+import { useTranslation } from 'react-i18next'
 import Button from '../shared/Button'
 import { fileState, gifImageState, toastState } from '../../store/Atoms'
 import { makeGif } from '../../adapters/inpainting'
@@ -19,6 +20,7 @@ const MakeGIF = (props: Props) => {
   const file = useRecoilValue(fileState)
   const setToastState = useSetRecoilState(toastState)
   const [show, setShow] = useState(false)
+  const { t } = useTranslation('errors')
 
   const handleOnClose = () => {
     setShow(false)
@@ -36,7 +38,7 @@ const MakeGIF = (props: Props) => {
       if (renders.length === 0) {
         setToastState({
           open: true,
-          desc: 'No render found',
+          desc: t('validation.imageRequired'),
           state: 'error',
           duration: 2000,
         })

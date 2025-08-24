@@ -1,0 +1,40 @@
+{
+  "fileUpload": {
+    "sizeTooLarge": "File size exceeds {{maxSize}}",
+    "invalidFormat": "Please upload an image file",
+    "uploadFailed": "Failed to upload file",
+    "multipleFiles": "Please drag and drop only one file",
+    "noFileSelected": "No file selected",
+    "dragImageFile": "Please drag and drop an image file"
+  },
+  "processing": {
+    "failed": "Processing failed",
+    "timeout": "Processing timeout",
+    "modelLoadFailed": "Failed to load AI model",
+    "outOfMemory": "Out of memory",
+    "serverError": "Something went wrong on server side."
+  },
+  "network": {
+    "connectionFailed": "Connection failed",
+    "serverError": "Server error",
+    "requestTimeout": "Request timeout"
+  },
+  "validation": {
+    "invalidInput": "Invalid input",
+    "maskRequired": "Mask is required",
+    "imageRequired": "Image is required",
+    "drawMaskRequired": "Please draw mask on picture",
+    "noMaskToReuse": "No mask to reuse"
+  },
+  "success": {
+    "copyToClipboard": "Copy inpainting result to clipboard",
+    "downloadComplete": "Downloaded successfully",
+    "gifSaved": "GIF saved successfully"
+  },
+  "language": {
+    "changeFailed": "Failed to change language"
+  },
+  "gif": {
+    "createFailed": "Failed to create GIF"
+  }
+}

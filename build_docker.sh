@@ -3,7 +3,7 @@ set -e
 
 GIT_TAG=$1
 IMAGE_DESC="Image inpainting tool powered by SOTA AI Model" 
-GIT_REPO="https://github.com/Sanster/lama-cleaner"
+GIT_REPO="https://github.com/alexxxiong/lama-cleaner"
 
 echo "Building cpu docker image..."
 

@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react'
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil'
+import { useTranslation } from 'react-i18next'
 import Editor from './Editor/Editor'
 import ShortcutsModal from './Shortcuts/ShortcutsModal'
 import SettingModal from './Settings/SettingsModal'
@@ -32,6 +33,7 @@ const Workspace = () => {
   const setFile = useSetRecoilState(fileState)
   const [settings, setSettingState] = useRecoilState(settingState)
   const [toastVal, setToastState] = useRecoilState(toastState)
+  const { t } = useTranslation('settings')
   const isSD = useRecoilValue(isSDState)
   const isPaintByExample = useRecoilValue(isPaintByExampleState)
   const isPix2Pix = useRecoilValue(isPix2PixState)
@@ -50,10 +52,10 @@ const Workspace = () => {
 
     const { model } = settings
 
-    let loadingMessage = `Switching to ${model} model`
+    let loadingMessage = t('model.switchingTo', { model })
     let loadingDuration = 3000
     if (downloaded === 'False') {
-      loadingMessage = `Downloading ${model} model, this may take a while`
+      loadingMessage = t('model.downloading', { model })
       loadingDuration = 9999999999
     }
 
@@ -69,7 +71,7 @@ const Workspace = () => {
         if (res.ok) {
           setToastState({
             open: true,
-            desc: `Switch to ${model} model success`,
+            desc: t('model.switchSuccess', { model }),
             state: 'success',
             duration: 3000,
           })
@@ -80,7 +82,7 @@ const Workspace = () => {
       .catch(() => {
         setToastState({
           open: true,
-          desc: `Switch to ${model} model failed`,
+          desc: t('model.switchFailed', { model }),
           state: 'error',
           duration: 3000,
         })

@@ -2,6 +2,7 @@ import { atom, selector } from 'recoil'
 import _ from 'lodash'
 import { HDStrategy, LDMSampler } from '../components/Settings/HDSettingBlock'
 import { ToastState } from '../components/shared/Toast'
+import i18n from '../i18n'
 
 export enum AIModel {
   LAMA = 'lama',
@@ -828,4 +829,34 @@ export const fileManagerSearchText = selector({
     const val = get(fileManagerState)
     set(fileManagerState, { ...val, searchText: newValue })
   },
+})
+
+// Language state for i18n
+const languageLocalStorageEffect = ({ setSelf, onSet }: any) => {
+  const savedValue = localStorage.getItem('preferred-language')
+  if (savedValue != null) {
+    setSelf(savedValue)
+    // Sync with i18n
+    if (i18n.language !== savedValue) {
+      i18n.changeLanguage(savedValue)
+    }
+  } else {
+    // Use browser language or fallback to 'en'
+    const browserLang = navigator.language.toLowerCase()
+    const lang = browserLang.startsWith('zh') ? 'zh-CN' : 'en'
+    setSelf(lang)
+  }
+
+  onSet((newValue: string) => {
+    localStorage.setItem('preferred-language', newValue)
+    if (i18n.language !== newValue) {
+      i18n.changeLanguage(newValue)
+    }
+  })
+}
+
+export const languageState = atom<string>({
+  key: 'languageState',
+  default: 'en',
+  effects: [languageLocalStorageEffect],
 })

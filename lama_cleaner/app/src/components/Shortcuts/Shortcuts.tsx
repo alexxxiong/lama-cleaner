@@ -1,11 +1,13 @@
 import React from 'react'
 import { useRecoilState } from 'recoil'
+import { useTranslation } from 'react-i18next'
 import useHotKey from '../../hooks/useHotkey'
 import { shortcutsState } from '../../store/Atoms'
 import Button from '../shared/Button'
 
 const Shortcuts = () => {
   const [shortcutVisibility, setShortcutState] = useRecoilState(shortcutsState)
+  const { t } = useTranslation('shortcuts')
 
   const shortcutStateHandler = () => {
     setShortcutState(prevShortcutState => {
@@ -21,7 +23,7 @@ const Shortcuts = () => {
     <div className="shortcuts">
       <Button
         onClick={shortcutStateHandler}
-        toolTip="Hotkeys"
+        toolTip={t('hotkeys') as string}
         disabled={shortcutVisibility}
         style={{ border: 0 }}
         icon={

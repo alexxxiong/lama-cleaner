@@ -1,0 +1,42 @@
+.language-switcher-ui {
+  position: relative;
+
+  .language-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 8px;
+    background: var(--modal-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    min-width: 120px;
+
+    .language-option {
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      font-size: 14px;
+      color: var(--text-color);
+
+      &:hover {
+        background-color: var(--btn-hover-bg);
+      }
+
+      &.active {
+        background-color: var(--btn-primary-bg);
+        color: var(--btn-primary-text-color);
+        font-weight: 500;
+      }
+
+      &:first-child {
+        border-radius: 8px 8px 0 0;
+      }
+
+      &:last-child {
+        border-radius: 0 0 8px 8px;
+      }
+    }
+  }
+}

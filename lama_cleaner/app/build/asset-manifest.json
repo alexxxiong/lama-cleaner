@@ -1,7 +1,7 @@
 {
   "files": {
-    "main.css": "/static/css/main.ce986cc8.css",
-    "main.js": "/static/js/main.1fda6320.js",
+    "main.css": "/static/css/main.0e6dbbad.css",
+    "main.js": "/static/js/main.48c7ecc7.js",
     "static/media/coffee-machine-lineal.gif": "/static/media/coffee-machine-lineal.ee32631219cc3986f861.gif",
     "static/media/Inter.var.woff2?v=3.19": "/static/media/Inter.var.c2fe3cb2b7c746f7966a.woff2",
     "static/media/Inter-italic.var.woff2?v=3.19": "/static/media/Inter-italic.var.30807be7abc48ba8c73c.woff2",
@@ -45,7 +45,7 @@
     "index.html": "/index.html"
   },
   "entrypoints": [
-    "static/css/main.ce986cc8.css",
-    "static/js/main.1fda6320.js"
+    "static/css/main.0e6dbbad.css",
+    "static/js/main.48c7ecc7.js"
   ]
 }

@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo } from 'react'
 import { useRecoilState, useSetRecoilState } from 'recoil'
 import { nanoid } from 'nanoid'
+import { useTranslation } from 'react-i18next'
+import './i18n' // Initialize i18n
 import useInputImage from './hooks/useInputImage'
 import { themeState } from './components/Header/ThemeChanger'
 import Workspace from './components/Workspace'
@@ -24,6 +26,7 @@ function App() {
   const [theme, setTheme] = useRecoilState(themeState)
   const setToastState = useSetRecoilState(toastState)
   const userInputImage = useInputImage()
+  const { t } = useTranslation('errors')
   const setServerConfigState = useSetRecoilState(serverConfigState)
 
   // Set Input Image
@@ -106,7 +109,7 @@ function App() {
         if (event.dataTransfer.files.length > 1) {
           setToastState({
             open: true,
-            desc: 'Please drag and drop only one file',
+            desc: t('fileUpload.multipleFiles'),
             state: 'error',
             duration: 3000,
           })
@@ -118,7 +121,7 @@ function App() {
           } else {
             setToastState({
               open: true,
-              desc: 'Please drag and drop an image file',
+              desc: t('fileUpload.dragImageFile'),
               state: 'error',
               duration: 3000,
             })

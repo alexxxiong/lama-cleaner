@@ -1,0 +1,81 @@
+{
+  "title": "Settings",
+  "tabs": {
+    "model": "Model",
+    "general": "General",
+    "advanced": "Advanced"
+  },
+  "model": {
+    "selectModel": "Select AI Model",
+    "device": "Device",
+    "enableControlNet": "Enable ControlNet",
+    "controlNetMethod": "ControlNet Method",
+    "switchModel": "Switch Model",
+    "downloadingModel": "Downloading model...",
+    "switchingTo": "Switching to {{model}} model",
+    "downloading": "Downloading {{model}} model, this may take a while",
+    "switchSuccess": "Switch to {{model}} model success",
+    "switchFailed": "Switch to {{model}} model failed"
+  },
+  "general": {
+    "theme": "Theme",
+    "themeOptions": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "language": "Language",
+    "enableFileManager": "Enable File Manager",
+    "inputDirectory": "Input Directory",
+    "outputDirectory": "Output Directory"
+  },
+  "advanced": {
+    "enableAutoSaving": "Enable Auto Saving",
+    "enableDownloadMask": "Enable Download Mask",
+    "enableManualInpainting": "Enable Manual Inpainting",
+    "enableUploadMask": "Enable Upload Mask",
+    "quality": "Quality",
+    "graduallyInpainting": "Gradually Inpainting",
+    "graduallyInpaintingDesc": "If checked, perform inpainting on the last result, otherwise, always run the model on the initial image.",
+    "downloadMask": "Download Mask",
+    "downloadMaskDesc": "Download inpainting result and mask",
+    "manualInpaintingMode": "Manual Inpainting Mode"
+  },
+  "parameters": {
+    "steps": "Steps",
+    "stepsDesc": "Large steps result in better result, but more time-consuming",
+    "guidanceScale": "Guidance Scale",
+    "strength": "Strength",
+    "sampler": "Sampler",
+    "seed": "Seed",
+    "maskBlur": "Mask Blur",
+    "matchHistograms": "Match Histograms",
+    "wireframe": "Wireframe",
+    "wireframeDesc": "Enable edge and line detect",
+    "radius": "Radius",
+    "radiusDesc": "Radius of a circular neighborhood of each point inpainted that is considered by the algorithm.",
+    "flag": "Flag",
+    "flagDesc": "Inpainting method",
+    "sizeLimit": "Size limit",
+    "triggerSize": "Trigger size",
+    "cropMargin": "Crop margin",
+    "strategy": "Strategy"
+  },
+  "hd": {
+    "strategy": "Strategy",
+    "strategies": {
+      "original": "Original",
+      "resize": "Resize",
+      "crop": "Crop"
+    },
+    "originalDesc": "Use original picture, suitable for picture size below 2K. Try",
+    "originalDescOr": "or",
+    "originalDescEnd": "if you didn't get good results or have GPU memory issue.",
+    "resizeDesc": "Resize the longer side of the image to a specific size, then do inpainting on the resized image.",
+    "cropDesc": "Crop masking area from the original image to do inpainting.",
+    "sizeLimit": "Size limit",
+    "triggerSize": "Trigger size",
+    "cropMargin": "Crop margin",
+    "pixel": "pixel"
+  }
+}

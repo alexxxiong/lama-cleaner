@@ -1,5 +1,6 @@
 import React, { ReactNode } from 'react'
 import { useRecoilState } from 'recoil'
+import { useTranslation } from 'react-i18next'
 import { hdSettingsState, settingState } from '../../store/Atoms'
 import Selector from '../shared/Selector'
 import NumberInputSetting from './NumberInputSetting'
@@ -18,8 +19,22 @@ export enum LDMSampler {
 
 function HDSettingBlock() {
   const [hdSettings, setHDSettings] = useRecoilState(hdSettingsState)
+  const { t } = useTranslation('settings')
   if (!hdSettings?.enabled) {
     return <></>
+  }
+
+  const getStrategyDisplayValue = () => {
+    switch (hdSettings.hdStrategy) {
+      case HDStrategy.ORIGINAL:
+        return t('hd.strategies.original')
+      case HDStrategy.RESIZE:
+        return t('hd.strategies.resize')
+      case HDStrategy.CROP:
+        return t('hd.strategies.crop')
+      default:
+        return t('hd.strategies.original')
+    }
   }
 
   const onStrategyChange = (value: HDStrategy) => {
@@ -44,25 +59,25 @@ function HDSettingBlock() {
   const renderOriginalOptionDesc = () => {
     return (
       <div>
-        Use original picture, suitable for picture size below 2K. Try{' '}
+        {t('hd.originalDesc')}{' '}
         <div
           tabIndex={0}
           role="button"
           className="inline-tip"
           onClick={() => onStrategyChange(HDStrategy.RESIZE)}
         >
-          Resize
-        </div>
-        {' or '}
+          {t('hd.strategies.resize')}
+        </div>{' '}
+        {t('hd.originalDescOr')}{' '}
         <div
           tabIndex={0}
           role="button"
           className="inline-tip"
           onClick={() => onStrategyChange(HDStrategy.CROP)}
         >
-          Crop
+          {t('hd.strategies.crop')}
         </div>{' '}
-        if you didn&apos;t get good results or have GPU memory issue.
+        {t('hd.originalDescEnd')}
       </div>
     )
   }
@@ -70,14 +85,11 @@ function HDSettingBlock() {
   const renderResizeOptionDesc = () => {
     return (
       <>
-        <div>
-          Resize the longer side of the image to a specific size, then do
-          inpainting on the resized image.
-        </div>
+        <div>{t('hd.resizeDesc')}</div>
         <NumberInputSetting
-          title="Size limit"
+          title={t('hd.sizeLimit') as string}
           value={`${hdSettings.hdStrategyResizeLimit}`}
-          suffix="pixel"
+          suffix={t('hd.pixel') as string}
           onValue={onResizeLimitChange}
         />
       </>
@@ -87,17 +99,17 @@ function HDSettingBlock() {
   const renderCropOptionDesc = () => {
     return (
       <>
-        <div>Crop masking area from the original image to do inpainting.</div>
+        <div>{t('hd.cropDesc')}</div>
         <NumberInputSetting
-          title="Trigger size"
+          title={t('hd.triggerSize') as string}
           value={`${hdSettings.hdStrategyCropTrigerSize}`}
-          suffix="pixel"
+          suffix={t('hd.pixel') as string}
           onValue={onCropTriggerSizeChange}
         />
         <NumberInputSetting
-          title="Crop margin"
+          title={t('hd.cropMargin') as string}
           value={`${hdSettings.hdStrategyCropMargin}`}
-          suffix="pixel"
+          suffix={t('hd.pixel') as string}
           onValue={onCropMarginChange}
         />
       </>
@@ -120,13 +132,25 @@ function HDSettingBlock() {
   return (
     <SettingBlock
       className="hd-setting-block"
-      title="Strategy"
+      title={t('hd.strategy') as string}
       input={
         <Selector
           width={80}
-          value={hdSettings.hdStrategy as string}
-          options={Object.values(HDStrategy)}
-          onChange={val => onStrategyChange(val as HDStrategy)}
+          value={getStrategyDisplayValue()}
+          options={[
+            t('hd.strategies.original'),
+            t('hd.strategies.resize'),
+            t('hd.strategies.crop'),
+          ]}
+          onChange={val => {
+            if (val === t('hd.strategies.original')) {
+              onStrategyChange(HDStrategy.ORIGINAL)
+            } else if (val === t('hd.strategies.resize')) {
+              onStrategyChange(HDStrategy.RESIZE)
+            } else if (val === t('hd.strategies.crop')) {
+              onStrategyChange(HDStrategy.CROP)
+            }
+          }}
         />
       }
       optionDesc={renderHDStrategyOptionDesc()}

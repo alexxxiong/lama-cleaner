@@ -6,6 +6,7 @@ import React, {
   useRef,
   FormEvent,
 } from 'react'
+import { useTranslation } from 'react-i18next'
 import _ from 'lodash'
 import * as Tabs from '@radix-ui/react-tabs'
 import { useRecoilState, useSetRecoilState } from 'recoil'
@@ -50,17 +51,20 @@ interface Filename {
   mtime: number
 }
 
-const SORT_BY_NAME = 'Name'
-const SORT_BY_CREATED_TIME = 'Created time'
-const SORT_BY_MODIFIED_TIME = 'Modified time'
-
 const IMAGE_TAB = 'image'
 const OUTPUT_TAB = 'output'
 
-const SortByMap = {
-  [SortBy.NAME]: SORT_BY_NAME,
-  [SortBy.CTIME]: SORT_BY_CREATED_TIME,
-  [SortBy.MTIME]: SORT_BY_MODIFIED_TIME,
+const getSortByLabel = (sortBy: SortBy, t: any) => {
+  switch (sortBy) {
+    case SortBy.NAME:
+      return t('fileManager.sortBy.name')
+    case SortBy.CTIME:
+      return t('fileManager.sortBy.createdTime')
+    case SortBy.MTIME:
+      return t('fileManager.sortBy.modifiedTime')
+    default:
+      return t('fileManager.sortBy.name')
+  }
 }
 
 interface Props {
@@ -72,6 +76,7 @@ interface Props {
 
 export default function FileManager(props: Props) {
   const { show, onClose, onPhotoClick, photoWidth } = props
+  const { t } = useTranslation('common')
   const [scrollTop, setScrollTop] = useState(0)
   const [closeScrollTop, setCloseScrollTop] = useState(0)
   const setToastState = useSetRecoilState(toastState)
@@ -174,11 +179,11 @@ export default function FileManager(props: Props) {
       <Flex
         style={{ justifyContent: 'flex-start', alignItems: 'center', gap: 12 }}
       >
-        <div>{`Images (${photos.length})`}</div>
+        <div>{`${t('fileManager.imagesCount')} (${photos.length})`}</div>
         <Flex>
           <Button
             icon={<ViewHorizontalIcon />}
-            toolTip="Rows layout"
+            toolTip={t('fileManager.rowsLayout') as string}
             onClick={() => {
               setLayout('rows')
             }}
@@ -186,7 +191,7 @@ export default function FileManager(props: Props) {
           />
           <Button
             icon={<ViewGridIcon />}
-            toolTip="Grid layout"
+            toolTip={t('fileManager.gridLayout') as string}
             onClick={() => {
               setLayout('masonry')
             }}
@@ -213,10 +218,10 @@ export default function FileManager(props: Props) {
         >
           <Tabs.List className="TabsList" aria-label="Manage your account">
             <Tabs.Trigger className="TabsTrigger" value={IMAGE_TAB}>
-              Image Directory
+              {t('fileManager.imageDirectory')}
             </Tabs.Trigger>
             <Tabs.Trigger className="TabsTrigger" value={OUTPUT_TAB}>
-              Output Directory
+              {t('fileManager.outputDirectory')}
             </Tabs.Trigger>
           </Tabs.List>
         </Tabs.Root>
@@ -239,34 +244,32 @@ export default function FileManager(props: Props) {
                 const target = evt.target as HTMLInputElement
                 setSearchText(target.value)
               }}
-              placeholder="Search by file name"
+              placeholder={t('fileManager.searchPlaceholder') as string}
             />
           </Flex>
           <Flex style={{ gap: 8 }}>
             <Selector
               width={140}
-              value={SortByMap[sortBy]}
-              options={Object.values(SortByMap)}
+              value={getSortByLabel(sortBy, t)}
+              options={[
+                t('fileManager.sortBy.name'),
+                t('fileManager.sortBy.createdTime'),
+                t('fileManager.sortBy.modifiedTime'),
+              ]}
               onChange={val => {
-                switch (val) {
-                  case SORT_BY_NAME:
-                    setSortBy(SortBy.NAME)
-                    break
-                  case SORT_BY_CREATED_TIME:
-                    setSortBy(SortBy.CTIME)
-                    break
-                  case SORT_BY_MODIFIED_TIME:
-                    setSortBy(SortBy.MTIME)
-                    break
-                  default:
-                    break
+                if (val === t('fileManager.sortBy.name')) {
+                  setSortBy(SortBy.NAME)
+                } else if (val === t('fileManager.sortBy.createdTime')) {
+                  setSortBy(SortBy.CTIME)
+                } else if (val === t('fileManager.sortBy.modifiedTime')) {
+                  setSortBy(SortBy.MTIME)
                 }
               }}
               chevronDirection="down"
             />
             <Button
               icon={<BarsArrowDownIcon />}
-              toolTip="Descending order"
+              toolTip={t('fileManager.descendingOrder') as string}
               onClick={() => {
                 setSortOrder(SortOrder.DESCENDING)
               }}
@@ -276,7 +279,7 @@ export default function FileManager(props: Props) {
             />
             <Button
               icon={<BarsArrowUpIcon />}
-              toolTip="Ascending order"
+              toolTip={t('fileManager.ascendingOrder') as string}
               onClick={() => {
                 setSortOrder(SortOrder.ASCENDING)
               }}

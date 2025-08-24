@@ -1,11 +1,13 @@
 import React from 'react'
 import { useRecoilState } from 'recoil'
+import { useTranslation } from 'react-i18next'
 import { settingState } from '../../store/Atoms'
 import { Switch, SwitchThumb } from '../shared/Switch'
 import SettingBlock from './SettingBlock'
 
 const GraduallyInpaintingSettingBlock: React.FC = () => {
   const [setting, setSettingState] = useRecoilState(settingState)
+  const { t } = useTranslation('settings')
 
   const onCheckChange = (checked: boolean) => {
     setSettingState(old => {
@@ -15,8 +17,8 @@ const GraduallyInpaintingSettingBlock: React.FC = () => {
 
   return (
     <SettingBlock
-      title="Gradually Inpainting"
-      desc="If checked, perform inpainting on the last result, otherwise, always run the model on the initial image."
+      title={t('advanced.graduallyInpainting') as string}
+      desc={t('advanced.graduallyInpaintingDesc') as string}
       input={
         <Switch
           checked={setting.graduallyInpainting}
