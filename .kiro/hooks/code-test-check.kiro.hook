@@ -1,0 +1,23 @@
+{
+  "enabled": true,
+  "name": "代码修改测试检查",
+  "description": "监控所有代码文件的修改，确认是否需要完整的测试，并提供测试思路和配合测试的建议",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "lama_cleaner/**/*.py",
+      "lama_cleaner/app/src/**/*.tsx",
+      "lama_cleaner/app/src/**/*.ts",
+      "lama_cleaner/app/src/**/*.js",
+      "setup.py",
+      "pyproject.toml",
+      "requirements.txt",
+      "lama_cleaner/app/package.json"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "检测到代码文件修改。请分析这些修改是否需要测试覆盖：\n\n1. **修改影响分析**：\n   - 分析修改的功能范围和影响面\n   - 判断是否涉及核心业务逻辑、API接口、数据处理等关键部分\n   - 评估修改的风险等级\n\n2. **测试需求评估**：\n   - 确定是否需要单元测试、集成测试或端到端测试\n   - 识别需要测试的具体功能点和边界条件\n   - 考虑回归测试的必要性\n\n3. **测试设计建议**：\n   - 提供具体的测试用例设计思路\n   - 建议测试数据和测试场景\n   - 推荐合适的测试框架和工具（Python: pytest, unittest; Frontend: Jest, React Testing Library）\n\n4. **测试配合策略**：\n   - 建议如何与现有测试体系集成\n   - 提供mock和stub的使用建议\n   - 考虑CI/CD流程中的自动化测试\n\n5. **注意事项**：\n   - 强调不要过度依赖完全自动化的测试\n   - 建议人工验证关键功能\n   - 提醒测试环境和生产环境的差异\n\n请基于修改的具体内容提供详细的测试建议，确保代码质量和系统稳定性。"
+  }
+}
