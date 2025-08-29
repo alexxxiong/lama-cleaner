@@ -1,0 +1,35 @@
+# 示例配置文件用于测试
+enabled: true
+scheduler_host: "localhost"
+scheduler_port: 8081
+
+zeromq:
+  host: "localhost"
+  base_port: 5555
+  heartbeat_port: 5570
+  control_port: 5571
+
+redis:
+  enabled: true
+  host: "localhost"
+  port: 6379
+  db: 0
+
+monitoring:
+  enabled: true
+  log_level: "INFO"
+  metrics_interval: 60
+
+queues:
+  gpu-high:
+    name: "gpu-high"
+    port: 5555
+    requirements:
+      gpu: true
+      gpu_memory: 8192
+  cpu-light:
+    name: "cpu-light"
+    port: 5559
+    requirements:
+      cpu_cores: 4
+      memory: 8192

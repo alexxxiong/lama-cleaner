@@ -1,0 +1,155 @@
+allowed_hosts:
+- localhost
+- 127.0.0.1
+auth_enabled: false
+auth_secret_key: null
+completed_task_ttl: 86400
+database:
+  database: lama_cleaner_distributed
+  host: localhost
+  max_overflow: 10
+  password: null
+  pool_size: 5
+  port: 5432
+  sqlite_path: data/distributed.db
+  type: sqlite
+  username: null
+default_task_timeout: 300
+enabled: false
+max_concurrent_tasks_per_node: 4
+max_task_retries: 3
+monitoring:
+  collect_queue_metrics: true
+  collect_system_metrics: true
+  collect_task_metrics: true
+  enabled: true
+  log_backup_count: 5
+  log_file: logs/distributed.log
+  log_format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  log_level: INFO
+  log_max_size: 10485760
+  metrics_interval: 60
+  metrics_port: 8080
+node_heartbeat_interval: 30
+node_timeout: 90
+queues:
+  cpu-intensive:
+    max_size: 1000
+    name: cpu-intensive
+    pattern: PUSH/PULL
+    port: 5558
+    priority_enabled: true
+    requirements:
+      cpu_cores: 8
+      memory: 16384
+      models:
+      - opencv
+      - zits
+  cpu-light:
+    max_size: 1000
+    name: cpu-light
+    pattern: PUSH/PULL
+    port: 5559
+    priority_enabled: true
+    requirements:
+      cpu_cores: 4
+      memory: 8192
+      models:
+      - opencv
+  gpu-high:
+    max_size: 1000
+    name: gpu-high
+    pattern: PUSH/PULL
+    port: 5555
+    priority_enabled: true
+    requirements:
+      gpu: true
+      gpu_memory: 8192
+      models:
+      - sd15
+      - sd21
+      - sdxl
+      - lama
+  gpu-low:
+    max_size: 1000
+    name: gpu-low
+    pattern: PUSH/PULL
+    port: 5557
+    priority_enabled: true
+    requirements:
+      gpu: true
+      gpu_memory: 2048
+      models:
+      - lama
+      - opencv
+  gpu-medium:
+    max_size: 1000
+    name: gpu-medium
+    pattern: PUSH/PULL
+    port: 5556
+    priority_enabled: true
+    requirements:
+      gpu: true
+      gpu_memory: 4096
+      models:
+      - lama
+      - mat
+      - fcf
+  serverless:
+    max_size: 1000
+    name: serverless
+    pattern: PUSH/PULL
+    port: 5560
+    priority_enabled: true
+    requirements:
+      models:
+      - lama
+      - opencv
+      serverless: true
+redis:
+  db: 0
+  enabled: true
+  host: localhost
+  max_connections: 10
+  password: null
+  port: 6379
+  socket_connect_timeout: 5
+  socket_timeout: 5
+scheduler_host: localhost
+scheduler_port: 8081
+serverless:
+  auto_scaling: true
+  aws_access_key: null
+  aws_region: us-east-1
+  aws_secret_key: null
+  cooldown_period: 300
+  enabled: false
+  lambda_function_name: lama-cleaner-worker
+  lambda_memory: 1024
+  lambda_timeout: 300
+  max_instances: 10
+  min_instances: 0
+  provider: aws
+  scale_down_threshold: 1
+  scale_up_threshold: 5
+storage:
+  base_path: storage
+  cache_path: cache
+  cleanup_interval: 3600
+  max_file_size: 104857600
+  s3_access_key: null
+  s3_bucket: null
+  s3_region: null
+  s3_secret_key: null
+  temp_file_ttl: 86400
+  temp_path: temp
+  type: local
+task_cleanup_interval: 3600
+zeromq:
+  base_port: 5555
+  context_io_threads: 1
+  control_port: 5571
+  heartbeat_port: 5570
+  host: localhost
+  socket_linger: 1000
+  socket_timeout: 5000
