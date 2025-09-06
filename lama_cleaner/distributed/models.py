@@ -153,6 +153,27 @@ class Task:
         """从 JSON 字符串创建任务对象"""
         data = json.loads(json_str)
         return cls.from_dict(data)
+    
+    @classmethod
+    def create_inpaint_task(cls, image_data: bytes, mask_data: bytes, 
+                           config: Dict[str, Any], user_id: Optional[str] = None) -> 'Task':
+        """创建图像修复任务"""
+        task = cls()
+        task.task_type = TaskType.INPAINT
+        task.config = config or {}
+        task.user_id = user_id
+        task.session_id = str(uuid.uuid4())
+        
+        # 注意：这里暂时不处理 image_data 和 mask_data
+        # 在实际实现中，这些数据应该保存到文件系统
+        task.metadata = {
+            'has_image_data': len(image_data) > 0 if image_data else False,
+            'has_mask_data': len(mask_data) > 0 if mask_data else False,
+            'image_size': len(image_data) if image_data else 0,
+            'mask_size': len(mask_data) if mask_data else 0
+        }
+        
+        return task
 
 
 @dataclass

@@ -4,7 +4,7 @@
   "description": "监控所有代码文件的修改，确认是否需要完整的测试，并提供测试思路和配合测试的建议",
   "version": "1",
   "when": {
-    "type": "fileEdited",
+    "type": "userTriggered",
     "patterns": [
       "lama_cleaner/**/*.py",
       "lama_cleaner/app/src/**/*.tsx",

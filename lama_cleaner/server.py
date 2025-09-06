@@ -6,17 +6,21 @@ os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
 
 import imghdr
 import io
-import logging
 import multiprocessing
 import random
 import time
+import uuid
 from pathlib import Path
+import signal
+import sys
+import logging
 
 import cv2
 import numpy as np
 import torch
 from PIL import Image
-from loguru import logger
+from lama_cleaner.logging_config import setup_logging, get_logger, show_startup_banner, log_shutdown
+from lama_cleaner.api_logging import init_api_logging, log_image_processing_start, log_image_processing_complete, log_image_processing_failed, log_model_switch
 
 from lama_cleaner.const import SD15_MODELS
 from lama_cleaner.file_manager import FileManager
@@ -97,7 +101,11 @@ logging.getLogger("werkzeug").addFilter(NoFlaskwebgui())
 
 app = Flask(__name__, static_folder=os.path.join(BUILD_DIR, "static"))
 app.config["JSON_AS_ASCII"] = False
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "lama-cleaner-secret-key")
 CORS(app, expose_headers=["Content-Disposition"])
+
+# 初始化API日志中间件
+init_api_logging(app)
 
 sio_logger = logging.getLogger("sio-logger")
 sio_logger.setLevel(logging.ERROR)
@@ -210,6 +218,9 @@ def media_thumbnail_file(tab, filename):
 
 @app.route("/inpaint", methods=["POST"])
 def process():
+    # 生成任务ID用于追踪
+    task_id = str(uuid.uuid4())[:8]
+    
     input = request.files
     # RGB
     origin_image_bytes = input["image"].read()
@@ -229,6 +240,13 @@ def process():
 
     form = request.form
     size_limit = max(image.shape)
+    
+    # 记录图像处理开始
+    log_image_processing_start(
+        task_id=task_id,
+        image_path=f"upload_{len(origin_image_bytes)}bytes",
+        processing_type="inpainting"
+    )
 
     if "paintByExampleImage" in input:
         paint_by_example_example_image, _ = load_img(
@@ -289,13 +307,28 @@ def process():
     start = time.time()
     try:
         res_np_img = model(image, mask, config)
+        processing_time = time.time() - start
+        
+        # 记录处理成功
+        log_image_processing_complete(
+            task_id=task_id,
+            processing_time=processing_time,
+            output_path=f"result_{res_np_img.shape}"
+        )
+        
     except RuntimeError as e:
-        if "CUDA out of memory. " in str(e):
+        processing_time = time.time() - start
+        error_msg = str(e)
+        
+        # 记录处理失败
+        log_image_processing_failed(task_id=task_id, error=error_msg)
+        
+        if "CUDA out of memory. " in error_msg:
             # NOTE: the string may change?
             return "CUDA out of memory", 500
         else:
             logger.exception(e)
-            return f"{str(e)}", 500
+            return f"{error_msg}", 500
     finally:
         logger.info(f"process time: {(time.time() - start) * 1000}ms")
         torch_gc()
@@ -448,8 +481,16 @@ def switch_model():
     if new_name == model.name:
         return "Same model", 200
 
+    old_name = model.name
+    start_time = time.time()
+    
     try:
         model.switch(new_name)
+        switch_time = time.time() - start_time
+        
+        # 记录模型切换成功
+        log_model_switch(old_name, new_name, switch_time)
+        
     except NotImplementedError:
         return f"{new_name} not implemented", 403
     return f"ok, switch to {new_name}", 200
@@ -478,17 +519,17 @@ def set_input_photo():
 def build_plugins(args):
     global plugins
     if args.enable_interactive_seg:
-        logger.info(f"Initialize {InteractiveSeg.name} plugin")
+        logger.info(f"🔌 初始化插件: {InteractiveSeg.name}")
         plugins[InteractiveSeg.name] = InteractiveSeg(
             args.interactive_seg_model, args.interactive_seg_device
         )
 
     if args.enable_remove_bg:
-        logger.info(f"Initialize {RemoveBG.name} plugin")
+        logger.info(f"🔌 初始化插件: {RemoveBG.name}")
         plugins[RemoveBG.name] = RemoveBG()
 
     if args.enable_anime_seg:
-        logger.info(f"Initialize {AnimeSeg.name} plugin")
+        logger.info(f"🔌 初始化插件: {AnimeSeg.name}")
         plugins[AnimeSeg.name] = AnimeSeg()
 
     if args.enable_realesrgan:
@@ -502,7 +543,7 @@ def build_plugins(args):
         )
 
     if args.enable_gfpgan:
-        logger.info(f"Initialize {GFPGANPlugin.name} plugin")
+        logger.info(f"🔌 初始化插件: {GFPGANPlugin.name}")
         if args.enable_realesrgan:
             logger.info("Use realesrgan as GFPGAN background upscaler")
         else:
@@ -514,14 +555,14 @@ def build_plugins(args):
         )
 
     if args.enable_restoreformer:
-        logger.info(f"Initialize {RestoreFormerPlugin.name} plugin")
+        logger.info(f"🔌 初始化插件: {RestoreFormerPlugin.name}")
         plugins[RestoreFormerPlugin.name] = RestoreFormerPlugin(
             args.restoreformer_device,
             upscaler=plugins.get(RealESRGANUpscaler.name, None),
         )
 
     if args.enable_gif:
-        logger.info(f"Initialize GIF plugin")
+        logger.info("🔌 初始化插件: GIF Maker")
         plugins[MakeGIF.name] = MakeGIF()
 
 
@@ -538,6 +579,27 @@ def main(args):
     global is_controlnet
     global controlnet_method
     global image_quality
+    
+    # 设置日志系统
+    setup_logging(level="INFO")
+    logger = get_logger("server")
+    
+    # 显示启动横幅
+    show_startup_banner(
+        version="1.0.0",
+        mode="Web 服务器",
+        host=args.host,
+        port=args.port
+    )
+    
+    # 注册优雅关闭处理器
+    def signal_handler(signum, frame):
+        logger.info("收到停止信号，正在优雅关闭...")
+        log_shutdown("server")
+        sys.exit(0)
+    
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
 
     build_plugins(args)
 
@@ -556,11 +618,11 @@ def main(args):
     is_desktop = args.gui
     if is_disable_model_switch:
         logger.info(
-            f"Start with --disable-model-switch, model switch on frontend is disable"
+            "🔒 模型切换已禁用 (--disable-model-switch)"
         )
 
     if args.input and os.path.isdir(args.input):
-        logger.info(f"Initialize file manager")
+        logger.info("📁 初始化文件管理器")
         thumb = FileManager(app)
         is_enable_file_manager = True
         app.config["THUMBNAIL_MEDIA_ROOT"] = args.input

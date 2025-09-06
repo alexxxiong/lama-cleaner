@@ -5,7 +5,6 @@
 集成持久化存储和状态转换验证。
 """
 
-import logging
 from typing import Dict, List, Optional, Callable, Set, Any
 from datetime import datetime, timedelta
 import threading
@@ -13,8 +12,7 @@ import time
 from .models import Task, TaskStatus, TaskType, TaskPriority
 from .config import get_config
 from .storage import get_task_storage
-
-logger = logging.getLogger(__name__)
+from .logging import get_task_manager_logger
 
 
 class TaskLifecycleManager:
@@ -57,6 +55,9 @@ class TaskManager:
         self.storage = get_task_storage()
         self.lifecycle_manager = TaskLifecycleManager()
         
+        # 使用专用的任务管理器日志器
+        self.logger = get_task_manager_logger()
+        
         # 内存缓存，用于快速访问
         self.task_cache: Dict[str, Task] = {}
         self.cache_lock = threading.RLock()
@@ -75,14 +76,14 @@ class TaskManager:
         """启动任务管理器"""
         self._running = True
         self._start_cleanup_thread()
-        logger.info("任务管理器已启动")
+        self.logger.info("任务管理器已启动", action="task_manager_started")
     
     def stop(self):
         """停止任务管理器"""
         self._running = False
         if self._cleanup_thread and self._cleanup_thread.is_alive():
             self._cleanup_thread.join(timeout=5)
-        logger.info("任务管理器已停止")
+        self.logger.info("任务管理器已停止", action="task_manager_stopped")
     
     def _load_active_tasks(self):
         """加载活跃任务到内存缓存"""
@@ -100,10 +101,12 @@ class TaskManager:
                     for task in tasks:
                         self.task_cache[task.task_id] = task
             
-            logger.info(f"已加载 {len(self.task_cache)} 个活跃任务到缓存")
+            self.logger.info(f"已加载 {len(self.task_cache)} 个活跃任务到缓存", 
+                            action="active_tasks_loaded", 
+                            task_count=len(self.task_cache))
             
         except Exception as e:
-            logger.error(f"加载活跃任务失败: {e}")
+            self.logger.error(f"加载活跃任务失败: {e}", action="load_tasks_error", error=str(e))
     
     def create_task(self, 
                    task_type: TaskType,
@@ -133,7 +136,8 @@ class TaskManager:
         with self.cache_lock:
             self.task_cache[task.task_id] = task
         
-        logger.info(f"创建任务: {task.task_id}, 类型: {task_type.value}")
+        # 记录任务创建
+        self.logger.log_task_created(task)
         self._notify_status_change(task)
         
         return task
@@ -163,7 +167,7 @@ class TaskManager:
         """更新任务状态"""
         task = self.get_task(task_id)
         if not task:
-            logger.warning(f"任务不存在: {task_id}")
+            self.logger.warning(f"任务不存在: {task_id}", action="task_not_found", task_id=task_id)
             return False
         
         # 验证状态转换
@@ -186,7 +190,7 @@ class TaskManager:
         
         # 保存到存储
         if not self.storage.update_task(task):
-            logger.error(f"更新任务存储失败: {task_id}")
+            self.logger.error(f"更新任务存储失败: {task_id}", action="update_task_storage_error", task_id=task_id)
             return False
         
         # 更新缓存
@@ -198,7 +202,8 @@ class TaskManager:
                 # 更新缓存中的任务
                 self.task_cache[task_id] = task
         
-        logger.info(f"任务状态更新: {task_id} {old_status.value} -> {status.value}")
+        # 记录任务状态变更
+        self.logger.log_task_status_change(task_id, old_status, status)
         self._notify_status_change(task)
         return True
     
@@ -210,7 +215,10 @@ class TaskManager:
         
         # 检查是否可以取消
         if not self.lifecycle_manager.can_transition(task.status, TaskStatus.CANCELLED):
-            logger.warning(f"任务无法取消: {task_id}, 当前状态: {task.status.value}")
+            self.logger.warning(f"任务无法取消: {task_id}, 当前状态: {task.status.value}",
+                              action="task_cancel_invalid",
+                              task_id=task_id,
+                              current_status=task.status.value)
             return False
         
         return self.update_task_status(task_id, TaskStatus.CANCELLED)
@@ -222,12 +230,19 @@ class TaskManager:
             return False
         
         if task.retry_count >= task.max_retries:
-            logger.warning(f"任务重试次数已达上限: {task_id}")
+            self.logger.warning(f"任务重试次数已达上限: {task_id}",
+                              action="task_retry_limit_exceeded",
+                              task_id=task_id,
+                              retry_count=task.retry_count,
+                              max_retries=task.max_retries)
             return False
         
         # 检查是否可以重试（只有失败的任务可以重试）
         if not self.lifecycle_manager.can_transition(task.status, TaskStatus.PENDING):
-            logger.warning(f"任务无法重试: {task_id}, 当前状态: {task.status.value}")
+            self.logger.warning(f"任务无法重试: {task_id}, 当前状态: {task.status.value}",
+                              action="task_retry_invalid",
+                              task_id=task_id,
+                              current_status=task.status.value)
             return False
         
         # 更新重试信息
@@ -240,14 +255,17 @@ class TaskManager:
         
         # 保存到存储
         if not self.storage.update_task(task):
-            logger.error(f"更新重试任务存储失败: {task_id}")
+            self.logger.error(f"更新重试任务存储失败: {task_id}",
+                            action="retry_task_storage_error",
+                            task_id=task_id)
             return False
         
         # 更新缓存
         with self.cache_lock:
             self.task_cache[task_id] = task
         
-        logger.info(f"任务重试: {task_id}, 重试次数: {task.retry_count}")
+        # 记录任务重试
+        self.logger.log_task_retry(task_id, task.retry_count, task.max_retries)
         self._notify_status_change(task)
         return True
     

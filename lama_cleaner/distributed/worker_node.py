@@ -5,7 +5,7 @@
 """
 
 import json
-import logging
+import sys
 import threading
 import time
 import zmq
@@ -13,29 +13,48 @@ from typing import Dict, List, Optional, Callable
 from datetime import datetime
 from pathlib import Path
 
+# 添加项目根路径
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+from lama_cleaner.logging_config import setup_logging, show_startup_banner, log_success, log_shutdown
 from .models import NodeCapability, NodeType, NodeStatus, Task, TaskStatus
 from .capability_detector import detect_node_capability
 from .config import get_config
 from .task_processor import TaskProcessor
 from .health_monitor import HeartbeatSender, NodeHealthChecker
-
-logger = logging.getLogger(__name__)
+from .logging import get_worker_logger
 
 
 class WorkerNode:
     """处理节点"""
     
     def __init__(self, node_config: Dict = None, capability: NodeCapability = None):
+        # 首先设置日志系统，确保立即可见的输出
+        setup_logging(level="INFO", enable_file_logging=True)
+        
         self.config = get_config()
         self.node_config = node_config or {}
         
-        # 节点能力
+        # 节点能力检测和配置
         if capability:
             self.capability = capability
         else:
             self.capability = self._detect_or_load_capability()
         
+        # 使用专用的工作节点日志器（需要node_id）
+        self.logger = get_worker_logger(self.capability.node_id)
+        
+        # 记录启动信息
+        self.logger.log_startup(self.capability)
+        
+        # 显示启动横幅
+        show_startup_banner(version="1.0.0", mode="分布式工作节点")
+        
+        # 显示节点能力信息
+        self._display_node_capabilities()
+        
         # ZeroMQ 上下文和 sockets
+        self.logger.info("🔧 初始化通信组件...")
         self.context = zmq.Context()
         self.control_socket = None
         self.heartbeat_socket = None
@@ -56,15 +75,18 @@ class WorkerNode:
         # 任务处理器
         device = self.node_config.get('device', 'cpu')
         self.task_processor = TaskProcessor(device=device, **self.node_config)
+        self.logger.success(f"任务处理器初始化完成 (设备: {device})", action="task_processor_init")
         
         # 心跳发送器
         scheduler_host = self.node_config.get('scheduler_host', 'localhost')
         self.heartbeat_sender = HeartbeatSender(self.capability, scheduler_host)
+        self.logger.success("心跳发送器初始化完成", action="heartbeat_sender_init")
         
         # 健康检查器
         self.health_checker = NodeHealthChecker(self.capability)
+        self.logger.success("健康检查器初始化完成", action="health_checker_init")
         
-        logger.info(f"工作节点初始化完成: {self.capability.node_id}")
+        self.logger.success("🎉 工作节点初始化完成", action="worker_init_complete")
     
     def _detect_or_load_capability(self) -> NodeCapability:
         """检测或加载节点能力"""
@@ -75,12 +97,12 @@ class WorkerNode:
             from .capability_detector import CapabilityDetector
             detector = CapabilityDetector()
             capability = detector.load_capability_config(capability_file)
-            logger.info(f"从配置文件加载节点能力: {capability_file}")
+            self.logger.info(f"📄 从配置文件加载节点能力: {capability_file}")
         else:
             # 自动检测
             node_type = NodeType(self.node_config.get('node_type', 'local'))
             capability = detect_node_capability(node_type)
-            logger.info("自动检测节点能力完成")
+            self.logger.info("✅ 自动检测节点能力完成")
         
         # 设置网络信息
         capability.host = self.node_config.get('host', 'localhost')
@@ -88,20 +110,55 @@ class WorkerNode:
         
         return capability
     
+    def _display_node_capabilities(self):
+        """显示节点能力信息"""
+        self.logger.info("📊 节点能力信息:")
+        self.logger.info(f"  ├─ 节点ID: {self.capability.node_id}")
+        self.logger.info(f"  ├─ 节点类型: {self.capability.node_type.value}")
+        self.logger.info(f"  ├─ 最大并发任务: {self.capability.max_concurrent_tasks}")
+        
+        # GPU信息
+        if hasattr(self.capability, 'gpu_info') and self.capability.gpu_info:
+            gpu_info = self.capability.gpu_info
+            self.logger.info(f"  ├─ GPU设备: {gpu_info.get('name', 'Unknown')}")
+            self.logger.info(f"  ├─ GPU内存: {gpu_info.get('memory_total', 0) / 1024**3:.1f} GB")
+        else:
+            self.logger.info("  ├─ GPU设备: 无 (CPU模式)")
+        
+        # 支持的模型
+        if hasattr(self.capability, 'supported_models') and self.capability.supported_models:
+            models = ', '.join(self.capability.supported_models[:3])  # 显示前3个
+            if len(self.capability.supported_models) > 3:
+                models += f" 等{len(self.capability.supported_models)}个模型"
+            self.logger.info(f"  ├─ 支持模型: {models}")
+        
+        # 支持的任务类型
+        if hasattr(self.capability, 'supported_tasks') and self.capability.supported_tasks:
+            tasks = ', '.join([t.value for t in self.capability.supported_tasks])
+            self.logger.info(f"  └─ 支持任务: {tasks}")
+        
+        self.logger.success("节点能力检测完成")
+    
     def start(self):
         """启动工作节点"""
         if self.is_running:
-            logger.warning("工作节点已在运行")
+            self.logger.warning("⚠️ 工作节点已在运行")
             return
         
         try:
+            self.logger.info("🚀 正在启动工作节点服务...")
+            
             # 连接到调度器
+            self.logger.log_registration_attempt(self.config.scheduler_host, self.config.scheduler_port)
             self._connect_to_scheduler()
             
             # 注册节点
             registration_result = self._register_node()
             if registration_result['status'] != 'success':
+                self.logger.log_registration_failed(str(registration_result))
                 raise RuntimeError(f"节点注册失败: {registration_result}")
+            
+            self.logger.log_registration_success()
             
             # 设置任务队列连接
             subscriptions = registration_result.get('subscriptions', [])
@@ -109,16 +166,18 @@ class WorkerNode:
             
             # 启动心跳发送器
             self.heartbeat_sender.start()
+            self.logger.success("心跳发送器已启动", action="heartbeat_started")
             
             # 启动工作线程
             self.is_running = True
             self._start_threads()
             
-            logger.info(f"工作节点已启动: {self.capability.node_id}")
-            logger.info(f"订阅队列: {subscriptions}")
+            self.logger.success("🎉 工作节点启动成功", 
+                              action="worker_start_complete",
+                              subscriptions=subscriptions)
             
         except Exception as e:
-            logger.error(f"启动工作节点失败: {e}")
+            self.logger.log_registration_failed(str(e))
             self.stop()
             raise
     
@@ -127,37 +186,46 @@ class WorkerNode:
         if not self.is_running:
             return
         
-        logger.info("正在停止工作节点...")
+        self.logger.info("🛑 正在停止工作节点...")
         self.is_running = False
         
         # 等待当前任务完成
+        self.logger.info("⏳ 等待当前任务完成...")
         self._wait_for_tasks_completion()
         
         # 停止心跳发送器
+        self.logger.info("💓 停止心跳发送器...")
         if hasattr(self, 'heartbeat_sender'):
             self.heartbeat_sender.stop()
+        self.logger.info("✅ 心跳发送器已停止")
         
         # 注销节点
+        self.logger.info("📝 从调度器注销节点...")
         self._unregister_node()
         
         # 停止工作线程
+        self.logger.info("🔧 停止工作线程...")
         self._stop_threads()
+        self.logger.info("✅ 工作线程已停止")
         
         # 关闭 sockets
+        self.logger.info("🔗 关闭网络连接...")
         self._close_sockets()
         
         # 清理任务处理器
+        self.logger.info("🧹 清理任务处理器...")
         if hasattr(self, 'task_processor'):
             self.task_processor.cleanup()
         
         # 关闭 ZeroMQ 上下文
         self.context.term()
         
-        logger.info("工作节点已停止")
+        log_shutdown("worker")
+        self.logger.success("工作节点已安全关闭")
     
     def _connect_to_scheduler(self):
         """连接到调度器"""
-        scheduler_host = self.config.scheduler.host
+        scheduler_host = self.config.scheduler_host
         
         # 控制信道连接
         self.control_socket = self.context.socket(zmq.REQ)
@@ -171,7 +239,7 @@ class WorkerNode:
         heartbeat_address = f"tcp://{scheduler_host}:{self.config.zeromq.heartbeat_port}"
         self.heartbeat_socket.connect(heartbeat_address)
         
-        logger.info(f"已连接到调度器: {scheduler_host}")
+        self.logger.success(f"已连接到调度器: {scheduler_host}")
     
     def _register_node(self) -> Dict:
         """向调度器注册节点"""
@@ -184,9 +252,9 @@ class WorkerNode:
         response = self.control_socket.recv_json()
         
         if response.get('status') == 'success':
-            logger.info(f"节点注册成功: {self.capability.node_id}")
+            self.logger.success(f"节点注册成功: {self.capability.node_id}")
         else:
-            logger.error(f"节点注册失败: {response}")
+            self.logger.error(f"节点注册失败: {response}")
         
         return response
     
@@ -202,20 +270,20 @@ class WorkerNode:
             response = self.control_socket.recv_json()
             
             if response.get('status') == 'success':
-                logger.info(f"节点注销成功: {self.capability.node_id}")
+                self.logger.success(f"节点注销成功: {self.capability.node_id}")
             else:
-                logger.warning(f"节点注销失败: {response}")
+                self.logger.warning(f"⚠️ 节点注销失败: {response}")
                 
         except Exception as e:
-            logger.error(f"节点注销异常: {e}")
+            self.logger.error(f"节点注销异常: {e}")
     
     def _setup_task_queues(self, subscriptions: List[str]):
         """设置任务队列连接"""
-        scheduler_host = self.config.scheduler.host
+        scheduler_host = self.config.scheduler_host
         
         for queue_name in subscriptions:
             if queue_name not in self.config.queues:
-                logger.warning(f"未知队列: {queue_name}")
+                self.logger.warning(f"⚠️ 未知队列: {queue_name}")
                 continue
             
             queue_config = self.config.queues[queue_name]
@@ -226,7 +294,7 @@ class WorkerNode:
             socket.connect(queue_address)
             
             self.task_sockets[queue_name] = socket
-            logger.info(f"已连接到任务队列: {queue_name} ({queue_address})")
+            self.logger.success(f"已连接到任务队列: {queue_name} ({queue_address})")
     
     def _start_threads(self):
         """启动工作线程"""
@@ -249,7 +317,7 @@ class WorkerNode:
             self._task_threads[queue_name] = thread
             thread.start()
         
-        logger.info(f"工作线程已启动: 健康检查线程 + {len(self.task_sockets)} 个任务线程")
+        self.logger.success(f"工作线程已启动: 健康检查线程 + {len(self.task_sockets)} 个任务线程")
     
     def _stop_threads(self):
         """停止工作线程"""
@@ -287,11 +355,11 @@ class WorkerNode:
                 if not is_healthy:
                     if self.capability.status == NodeStatus.ONLINE:
                         self.capability.status = NodeStatus.ERROR
-                        logger.warning("节点健康检查失败，状态设为ERROR")
+                        self.logger.warning("⚠️ 节点健康检查失败，状态设为ERROR")
                 else:
                     if self.capability.status == NodeStatus.ERROR:
                         self.capability.status = NodeStatus.ONLINE
-                        logger.info("节点健康检查恢复，状态设为ONLINE")
+                        self.logger.success("节点健康检查恢复，状态设为ONLINE")
                 
                 # 更新心跳发送器的负载信息
                 self.heartbeat_sender.update_load(len(self.current_tasks))
@@ -299,7 +367,7 @@ class WorkerNode:
                 time.sleep(check_interval)
                 
             except Exception as e:
-                logger.error(f"健康检查失败: {e}")
+                self.logger.error(f"健康检查失败: {e}")
                 self.heartbeat_sender.report_error(str(e))
                 time.sleep(check_interval)
     
@@ -328,7 +396,7 @@ class WorkerNode:
             except zmq.Again:
                 continue
             except Exception as e:
-                logger.error(f"任务处理线程异常 {queue_name}: {e}")
+                self.logger.error(f"任务处理线程异常 {queue_name}: {e}")
                 time.sleep(1)
     
     def _deserialize_task(self, task_data: bytes) -> Optional[Task]:
@@ -337,7 +405,7 @@ class WorkerNode:
             task_dict = json.loads(task_data.decode('utf-8'))
             return Task.from_dict(task_dict)
         except Exception as e:
-            logger.error(f"任务反序列化失败: {e}")
+            self.logger.error(f"任务反序列化失败: {e}")
             return None
     
     def _process_task(self, task: Task):
@@ -346,13 +414,17 @@ class WorkerNode:
         
         with self.task_lock:
             if task_id in self.current_tasks:
-                logger.warning(f"任务已在处理中: {task_id}")
+                self.logger.warning(f"⚠️ 任务已在处理中: {task_id}", action="task_duplicate")
                 return
             
             self.current_tasks[task_id] = task
         
+        # 记录任务接收
+        self.logger.log_task_received(task)
+        
         try:
-            logger.info(f"开始处理任务: {task_id} ({task.task_type.value})")
+            # 记录任务开始处理
+            self.logger.log_task_processing_start(task_id)
             
             # 更新任务状态
             task.status = TaskStatus.PROCESSING
@@ -369,16 +441,16 @@ class WorkerNode:
                 task.status = TaskStatus.COMPLETED
                 task.result_path = result
                 task.processing_time = processing_time
-                logger.info(f"任务处理完成: {task_id} ({processing_time:.2f}s)")
+                self.logger.log_task_processing_complete(task_id, processing_time)
             else:
                 task.status = TaskStatus.FAILED
                 task.error_message = "任务处理返回空结果"
-                logger.error(f"任务处理失败: {task_id}")
+                self.logger.log_task_processing_failed(task_id, "任务处理返回空结果")
             
         except Exception as e:
             task.status = TaskStatus.FAILED
             task.error_message = str(e)
-            logger.error(f"任务处理异常 {task_id}: {e}")
+            self.logger.log_task_processing_failed(task_id, str(e))
             
             # 报告错误到心跳发送器
             self.heartbeat_sender.report_error(f"任务处理失败: {str(e)}")
@@ -424,7 +496,7 @@ class WorkerNode:
     def _report_task_progress(self, task_id: str, progress: float, message: str):
         """报告任务进度"""
         # 这里可以通过心跳或专门的进度通道发送进度信息
-        logger.debug(f"任务进度 {task_id}: {progress:.1%} - {message}")
+        self.logger.debug(f"📊 任务进度 {task_id}: {progress:.1%} - {message}")
         
         # 可以发送进度更新到调度器
         # self._send_progress_update(task_id, progress, message)
@@ -432,7 +504,7 @@ class WorkerNode:
     def _notify_task_completion(self, task: Task):
         """通知任务完成"""
         # 这里可以发送任务结果到结果队列或直接更新状态管理器
-        logger.debug(f"任务完成通知: {task.task_id} -> {task.status.value}")
+        self.logger.debug(f"📝 任务完成通知: {task.task_id} -> {task.status.value}")
         
         # 调用回调函数
         callback = self.task_callbacks.get(task.task_type.value)
@@ -440,18 +512,18 @@ class WorkerNode:
             try:
                 callback(task)
             except Exception as e:
-                logger.error(f"任务完成回调失败: {e}")
+                self.logger.error(f"任务完成回调失败: {e}")
     
     def _wait_for_tasks_completion(self, timeout: int = 30):
         """等待当前任务完成"""
         start_time = time.time()
         
         while self.current_tasks and (time.time() - start_time) < timeout:
-            logger.info(f"等待 {len(self.current_tasks)} 个任务完成...")
+            self.logger.info(f"⏳ 等待 {len(self.current_tasks)} 个任务完成...")
             time.sleep(1)
         
         if self.current_tasks:
-            logger.warning(f"超时，仍有 {len(self.current_tasks)} 个任务未完成")
+            self.logger.warning(f"⚠️ 超时，仍有 {len(self.current_tasks)} 个任务未完成")
     
     def register_task_callback(self, task_type: str, callback: Callable[[Task], None]):
         """注册任务完成回调"""
@@ -494,7 +566,7 @@ if __name__ == "__main__":
     import sys
     
     def signal_handler(signum, frame):
-        logger.info("收到停止信号，正在关闭工作节点...")
+        print("📝 收到停止信号，正在关闭工作节点...")
         if 'worker' in globals():
             worker.stop()
         sys.exit(0)
@@ -512,10 +584,11 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
+    # 日志配置在 WorkerNode.__init__ 中已经设置
     if args.verbose:
-        logging.basicConfig(level=logging.DEBUG)
+        setup_logging(level="DEBUG")
     else:
-        logging.basicConfig(level=logging.INFO)
+        setup_logging(level="INFO")
     
     # 创建工作节点
     node_config = {
@@ -534,8 +607,8 @@ if __name__ == "__main__":
             time.sleep(1)
             
     except KeyboardInterrupt:
-        logger.info("收到中断信号")
+        print("👋 收到中断信号")
     except Exception as e:
-        logger.error(f"工作节点运行异常: {e}")
+        print(f"💥 工作节点运行异常: {e}")
     finally:
         worker.stop()

@@ -1,0 +1,16 @@
+{
+  "level": "INFO",
+  "console_enabled": true,
+  "file_enabled": true,
+  "structured_logging": true,
+  "log_directory": "logs",
+  "filename_pattern": "lama_cleaner_{time:YYYY-MM-DD}.log",
+  "rotation": {
+    "max_size": "100 MB",
+    "rotation_time": "1 day",
+    "retention_days": 30,
+    "retention_count": 10,
+    "compression": "gz",
+    "backup_count": 5
+  }
+}

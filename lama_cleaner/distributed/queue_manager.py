@@ -4,7 +4,6 @@
 基于 ZeroMQ 的队列管理系统，负责任务路由和队列监控。
 """
 
-import logging
 import zmq
 import json
 import threading
@@ -13,8 +12,7 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 from .models import Task, QueueConfig, TaskPriority
 from .config import get_config
-
-logger = logging.getLogger(__name__)
+from .logging import get_queue_manager_logger
 
 
 class QueueManager:
@@ -28,13 +26,16 @@ class QueueManager:
         self._running = False
         self._stats_thread = None
         self._lock = threading.RLock()
+        
+        # 使用专用的队列管理器日志器
+        self.logger = get_queue_manager_logger()
     
     def start(self):
         """启动队列管理器"""
         self._setup_queues()
         self._running = True
         self._start_stats_thread()
-        logger.info("队列管理器已启动")
+        self.logger.info("队列管理器已启动", action="queue_manager_started")
     
     def stop(self):
         """停止队列管理器"""
