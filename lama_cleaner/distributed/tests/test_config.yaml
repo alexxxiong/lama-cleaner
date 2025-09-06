@@ -1,0 +1,186 @@
+# 测试配置文件
+# 用于配置各种测试场景和参数
+
+# 测试环境配置
+test_environments:
+  # 游戏 PC 配置
+  gaming_pc:
+    cpu:
+      cores: 8
+      model: "Intel i7-12700K"
+      frequency: 3600
+    memory:
+      total: 32768  # 32GB
+      available: 16384
+    gpu:
+      - name: "RTX 4070 Ti"
+        memory_total: 12288  # 12GB
+        vendor: "NVIDIA"
+    expected_models: ["lama", "sd15", "sd21", "opencv"]
+    expected_concurrent_tasks: 4
+
+  # 服务器配置
+  server:
+    cpu:
+      cores: 32
+      model: "AMD EPYC 7543"
+      frequency: 2800
+    memory:
+      total: 131072  # 128GB
+      available: 65536
+    gpu:
+      - name: "A100"
+        memory_total: 40960  # 40GB
+        vendor: "NVIDIA"
+      - name: "A100"
+        memory_total: 40960  # 40GB
+        vendor: "NVIDIA"
+    expected_models: ["lama", "sd15", "sd21", "sdxl", "opencv"]
+    expected_concurrent_tasks: 8
+
+  # 笔记本配置
+  laptop:
+    cpu:
+      cores: 4
+      model: "Intel i5-1135G7"
+      frequency: 2400
+    memory:
+      total: 8192  # 8GB
+      available: 4096
+    gpu:
+      - name: "RTX 3050"
+        memory_total: 4096  # 4GB
+        vendor: "NVIDIA"
+    expected_models: ["lama", "opencv"]
+    expected_concurrent_tasks: 2
+
+  # Apple Silicon Mac
+  apple_silicon:
+    cpu:
+      cores: 8
+      model: "Apple M2 Pro"
+      frequency: 0  # 不适用
+    memory:
+      total: 16384  # 16GB
+      available: 8192
+    gpu:
+      - name: "Apple M2 Pro"
+        memory_total: 0  # 统一内存架构
+        vendor: "Apple"
+        unified_memory: true
+    expected_models: ["lama", "opencv"]
+    expected_concurrent_tasks: 3
+
+  # 低配置系统
+  low_end:
+    cpu:
+      cores: 2
+      model: "Intel Celeron N4020"
+      frequency: 1100
+    memory:
+      total: 4096  # 4GB
+      available: 2048
+    gpu: []  # 无独立 GPU
+    expected_models: ["opencv"]
+    expected_concurrent_tasks: 1
+
+# 测试参数配置
+test_parameters:
+  # 性能测试阈值
+  performance:
+    max_detection_time: 1.0  # 秒
+    max_config_generation_time: 0.1  # 秒
+    max_memory_usage: 100  # MB
+
+  # 错误处理测试
+  error_scenarios:
+    - name: "missing_psutil"
+      mock_target: "psutil.cpu_count"
+      exception: "ImportError"
+      message: "psutil not available"
+    
+    - name: "gpu_driver_error"
+      mock_target: "pynvml.nvmlInit"
+      exception: "Exception"
+      message: "Driver not loaded"
+    
+    - name: "invalid_config_file"
+      scenario: "malformed_json"
+      content: "invalid json content"
+
+  # 跨平台测试
+  platforms:
+    - name: "linux"
+      system: "Linux"
+      cpu_info_source: "/proc/cpuinfo"
+      gpu_detection: ["lspci", "nvidia-smi"]
+    
+    - name: "macos"
+      system: "Darwin"
+      cpu_info_source: "sysctl"
+      gpu_detection: ["system_profiler", "sysctl"]
+    
+    - name: "windows"
+      system: "Windows"
+      cpu_info_source: "registry"
+      gpu_detection: ["wmi", "nvidia-smi"]
+
+# 模型需求配置（用于测试验证）
+model_requirements:
+  lama:
+    min_memory: 2048
+    gpu_required: false
+    frameworks: ["torch"]
+  
+  sd15:
+    min_memory: 6144
+    gpu_required: true
+    gpu_memory: 6144
+    frameworks: ["torch", "diffusers"]
+  
+  sdxl:
+    min_memory: 12288
+    gpu_required: true
+    gpu_memory: 12288
+    frameworks: ["torch", "diffusers"]
+  
+  opencv:
+    min_memory: 1024
+    gpu_required: false
+    frameworks: ["opencv"]
+
+# 测试数据生成配置
+test_data:
+  # 配置文件模板
+  capability_config_template:
+    node_info:
+      node_type: "local"
+      generated_at: "2024-01-01T00:00:00"
+    
+    hardware:
+      cpu_cores: 8
+      memory_total: 16384
+      gpu_count: 1
+      gpu_memory: 8192
+      gpu_models: ["Test GPU"]
+    
+    capabilities:
+      supported_models: ["lama", "opencv"]
+      supported_tasks: ["inpaint", "plugin"]
+      max_concurrent_tasks: 3
+      queue_subscriptions: ["gpu-medium", "cpu-light"]
+
+# 测试覆盖率目标
+coverage_targets:
+  overall: 90  # 总体覆盖率目标
+  modules:
+    capability_detector: 95
+    hardware_detector: 90
+    model_detector: 85
+  
+  critical_paths:
+    - "detect_full_capability"
+    - "detect_gpu_info"
+    - "detect_supported_models"
+    - "generate_capability_config"
+    - "load_capability_config"

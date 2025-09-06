@@ -60,6 +60,34 @@ test-file:
 		python -m pytest tests/$(FILE) -v; \
 	fi
 
+# 运行能力检测器测试
+test-capability:
+	python -m pytest tests/test_capability_detector.py -v
+
+# 运行跨平台测试
+test-cross-platform:
+	python -m pytest tests/test_capability_detector.py::TestCapabilityDetectorCrossPlatform -v
+
+# 运行性能测试
+test-performance:
+	python -m pytest tests/test_capability_detector.py::TestCapabilityDetectorPerformance -v
+
+# 运行状态管理器测试
+test-state:
+	python tests/run_tests.py --type state --verbose
+
+# 运行状态管理器集成测试
+test-state-integration:
+	python -m pytest tests/test_state_manager_integration.py -v
+
+# 运行通信集成测试
+test-communication:
+	python tests/run_tests.py --type communication --verbose
+
+# 运行 Mock 完整性测试
+test-mock:
+	python tests/run_tests.py --type mock --verbose
+
 # 清理测试产生的文件
 clean:
 	find . -type f -name "*.pyc" -delete

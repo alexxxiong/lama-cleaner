@@ -45,9 +45,24 @@ def run_tests(test_type='all', verbose=False, coverage=False):
             str(test_dir / 'test_module_integrity.py')
         ])
     elif test_type == 'integration':
-        cmd.append(str(test_dir / 'test_integration.py'))
+        cmd.extend([
+            str(test_dir / 'test_integration.py'),
+            str(test_dir / 'test_state_manager_integration.py')
+        ])
     elif test_type == 'models':
         cmd.append(str(test_dir / 'test_models.py'))
+    elif test_type == 'state':
+        cmd.extend([
+            str(test_dir / 'test_state_manager.py'),
+            str(test_dir / 'test_state_manager_integration.py')
+        ])
+    elif test_type == 'communication':
+        cmd.extend([
+            str(test_dir / 'test_communication_integration.py'),
+            str(test_dir / 'test_mock_integrity.py')
+        ])
+    elif test_type == 'mock':
+        cmd.append(str(test_dir / 'test_mock_integrity.py'))
     elif test_type == 'all':
         cmd.append(str(test_dir))
     else:
@@ -93,7 +108,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run distributed module tests')
     parser.add_argument(
         '--type', 
-        choices=['all', 'init', 'integration', 'models'],
+        choices=['all', 'init', 'integration', 'models', 'state', 'communication', 'mock'],
         default='all',
         help='Type of tests to run'
     )

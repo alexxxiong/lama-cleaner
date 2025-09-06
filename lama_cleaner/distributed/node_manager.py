@@ -8,10 +8,11 @@ import logging
 import threading
 import time
 import zmq
-from typing import Dict, List, Optional, Callable
+from typing import Dict, List, Optional, Callable, Any
 from datetime import datetime, timedelta
 from .models import NodeCapability, NodeStatus, Task
 from .config import get_config
+from .health_monitor import HeartbeatReceiver
 
 logger = logging.getLogger(__name__)
 
@@ -28,17 +29,25 @@ class NodeManager:
         
         # ZeroMQ sockets
         self.control_socket = None
-        self.heartbeat_socket = None
+        
+        # 心跳接收器
+        self.heartbeat_receiver = HeartbeatReceiver()
         
         # 线程
         self._control_thread = None
-        self._heartbeat_thread = None
-        self._monitor_thread = None
         self._running = False
     
     def start(self):
         """启动节点管理器"""
         self._setup_sockets()
+        
+        # 启动心跳接收器
+        self.heartbeat_receiver.start()
+        
+        # 设置心跳回调
+        self.heartbeat_receiver.add_heartbeat_callback(self._handle_heartbeat_data)
+        self.heartbeat_receiver.add_timeout_callback(self._handle_node_timeout)
+        
         self._running = True
         self._start_threads()
         logger.info("节点管理器已启动")
@@ -47,16 +56,16 @@ class NodeManager:
         """停止节点管理器"""
         self._running = False
         
+        # 停止心跳接收器
+        self.heartbeat_receiver.stop()
+        
         # 等待线程结束
-        for thread in [self._control_thread, self._heartbeat_thread, self._monitor_thread]:
-            if thread and thread.is_alive():
-                thread.join(timeout=5)
+        if self._control_thread and self._control_thread.is_alive():
+            self._control_thread.join(timeout=5)
         
         # 关闭 sockets
         if self.control_socket:
             self.control_socket.close()
-        if self.heartbeat_socket:
-            self.heartbeat_socket.close()
         
         self.context.term()
         logger.info("节点管理器已停止")
@@ -68,14 +77,7 @@ class NodeManager:
         self.control_socket.setsockopt(zmq.LINGER, self.config.zeromq.socket_linger)
         self.control_socket.bind(f"tcp://*:{self.config.zeromq.control_port}")
         
-        # 心跳信道 (SUB socket)
-        self.heartbeat_socket = self.context.socket(zmq.SUB)
-        self.heartbeat_socket.setsockopt(zmq.LINGER, self.config.zeromq.socket_linger)
-        self.heartbeat_socket.bind(f"tcp://*:{self.config.zeromq.heartbeat_port}")
-        self.heartbeat_socket.setsockopt(zmq.SUBSCRIBE, b"heartbeat")
-        
         logger.info(f"控制信道端口: {self.config.zeromq.control_port}")
-        logger.info(f"心跳信道端口: {self.config.zeromq.heartbeat_port}")
     
     def register_node(self, capability: NodeCapability) -> Dict[str, any]:
         """注册节点"""
@@ -227,12 +229,7 @@ class NodeManager:
     def _start_threads(self):
         """启动工作线程"""
         self._control_thread = threading.Thread(target=self._control_worker, daemon=True)
-        self._heartbeat_thread = threading.Thread(target=self._heartbeat_worker, daemon=True)
-        self._monitor_thread = threading.Thread(target=self._monitor_worker, daemon=True)
-        
         self._control_thread.start()
-        self._heartbeat_thread.start()
-        self._monitor_thread.start()
         
         logger.info("节点管理器工作线程已启动")
     
@@ -251,29 +248,29 @@ class NodeManager:
                 logger.error(f"控制信道处理失败: {e}")
                 time.sleep(1)
     
-    def _heartbeat_worker(self):
-        """心跳信道工作线程"""
-        while self._running:
-            try:
-                # 设置超时以便能够响应停止信号
-                if self.heartbeat_socket.poll(1000):  # 1秒超时
-                    topic, message = self.heartbeat_socket.recv_multipart()
-                    self._handle_heartbeat_message(message)
-            except zmq.Again:
-                continue
-            except Exception as e:
-                logger.error(f"心跳信道处理失败: {e}")
-                time.sleep(1)
+    def _handle_heartbeat_data(self, heartbeat_data):
+        """处理心跳数据"""
+        node_id = heartbeat_data.node_id
+        
+        with self.node_lock:
+            if node_id in self.nodes:
+                node = self.nodes[node_id]
+                node.last_heartbeat = heartbeat_data.timestamp
+                node.current_load = heartbeat_data.current_load
+                node.total_processed = heartbeat_data.total_processed
+                node.status = heartbeat_data.status
+                
+                logger.debug(f"更新节点心跳: {node_id}")
     
-    def _monitor_worker(self):
-        """节点监控工作线程"""
-        while self._running:
-            try:
-                self._check_node_timeouts()
-                time.sleep(self.config.node_heartbeat_interval)
-            except Exception as e:
-                logger.error(f"节点监控失败: {e}")
-                time.sleep(10)
+    def _handle_node_timeout(self, node_id: str):
+        """处理节点超时"""
+        with self.node_lock:
+            if node_id in self.nodes:
+                self.nodes[node_id].status = NodeStatus.OFFLINE
+                logger.warning(f"节点超时离线: {node_id}")
+                
+                # 这里可以添加节点故障处理逻辑
+                # 例如：重新分配该节点的任务
     
     def _handle_control_message(self, message: Dict) -> Dict:
         """处理控制消息"""
@@ -305,35 +302,9 @@ class NodeManager:
             logger.error(f"处理控制消息失败: {e}")
             return {'status': 'error', 'message': str(e)}
     
-    def _handle_heartbeat_message(self, message: bytes):
-        """处理心跳消息"""
-        try:
-            import json
-            heartbeat_data = json.loads(message.decode('utf-8'))
-            node_id = heartbeat_data.get('node_id')
-            
-            if node_id:
-                self.update_node_heartbeat(node_id, heartbeat_data)
-                
-        except Exception as e:
-            logger.error(f"处理心跳消息失败: {e}")
-    
-    def _check_node_timeouts(self):
-        """检查节点超时"""
-        timeout_threshold = datetime.now() - timedelta(seconds=self.config.node_timeout)
-        timed_out_nodes = []
-        
-        with self.node_lock:
-            for node_id, node in self.nodes.items():
-                if (node.status == NodeStatus.ONLINE and 
-                    node.last_heartbeat and 
-                    node.last_heartbeat < timeout_threshold):
-                    node.status = NodeStatus.OFFLINE
-                    timed_out_nodes.append(node_id)
-        
-        for node_id in timed_out_nodes:
-            logger.warning(f"节点超时离线: {node_id}")
-            # 这里可以添加节点故障处理逻辑
+    def get_health_statistics(self) -> Dict[str, Any]:
+        """获取健康统计信息"""
+        return self.heartbeat_receiver.get_health_statistics()
     
     def send_cancel_command(self, node_id: str, task_id: str) -> bool:
         """向节点发送任务取消命令"""

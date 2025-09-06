@@ -223,6 +223,77 @@ python -m pytest --cov=lama_cleaner.distributed --cov-report=html
 - 添加针对性的测试用例
 - 保持高质量的测试覆盖
 
+## 新增测试模块
+
+### 5. 能力检测器测试 (`test_capability_detector.py`)
+- **目的**: 测试节点硬件能力检测和模型支持检测
+- **覆盖范围**:
+  - 硬件检测（CPU、内存、GPU）
+  - 模型支持检测和验证
+  - 跨平台兼容性（Linux、macOS、Windows）
+  - 配置文件生成和加载
+  - 错误处理和边界条件
+  - 性能基准测试
+
+### 测试类别详细说明
+
+#### 硬件检测测试
+- **TestHardwareDetector**: 基础硬件检测功能
+- **TestCapabilityDetectorCrossPlatform**: 跨平台兼容性
+- **TestCapabilityDetectorEdgeCases**: 边界条件和异常情况
+
+#### 模型检测测试
+- **TestModelDetector**: 模型支持检测和框架验证
+- **TestCapabilityDetectorIntegrationScenarios**: 真实场景集成测试
+
+#### 错误处理测试
+- **TestCapabilityDetectorErrorHandling**: 异常情况和错误恢复
+- **TestCapabilityDetectorPerformance**: 性能基准和优化验证
+
+### 专用测试工具
+
+#### 测试运行器 (`test_capability_detector_runner.py`)
+- 独立的测试验证工具
+- 模拟各种硬件环境
+- 性能基准测试
+- 错误处理验证
+- 集成测试验证
+
+```bash
+# 运行能力检测器专用测试
+python tests/test_capability_detector_runner.py
+
+# 运行特定测试类别
+make test-capability
+make test-cross-platform
+make test-performance
+```
+
+## 测试策略更新
+
+### 1. Mock 策略增强
+- **硬件模拟**: 使用 unittest.mock 模拟各种硬件配置
+- **跨平台测试**: 模拟不同操作系统的系统调用
+- **依赖隔离**: 模拟缺失依赖和驱动问题
+
+### 2. 边界条件覆盖
+- **极端配置**: 测试零内存、超高配置等边界情况
+- **Unicode 支持**: 测试硬件名称中的特殊字符
+- **混合环境**: 测试多厂商 GPU 混合配置
+
+### 3. 性能验证
+- **检测速度**: 确保硬件检测在合理时间内完成
+- **内存使用**: 监控检测过程的内存占用
+- **配置生成**: 验证大型配置文件的生成性能
+
+### 4. 真实场景测试
+- **游戏 PC**: 中高端消费级配置
+- **服务器**: 高性能多 GPU 配置  
+- **笔记本**: 移动端中等配置
+- **工作站**: 专业级混合配置
+
 ## 总结
 
 这个测试套件提供了全面的测试覆盖，确保分布式处理模块的质量和稳定性。通过分层的测试策略、完善的测试工具和持续的质量监控，我们能够及时发现和修复问题，保证系统的可靠性。
+
+新增的能力检测器测试特别关注跨平台兼容性和硬件多样性，确保系统能够在各种环境下正确识别和利用硬件资源。

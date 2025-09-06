@@ -2,21 +2,31 @@
 状态管理器
 
 负责维护任务和节点的状态信息，提供实时状态更新和查询功能。
+集成 Redis 缓存和事件通知机制，支持分布式状态同步。
 """
 
 import logging
 import json
 import threading
-from typing import Dict, List, Optional, Callable, Any
-from datetime import datetime
-from .models import Task, TaskStatus, NodeCapability
+import time
+from typing import Dict, List, Optional, Callable, Any, Union
+from datetime import datetime, timedelta
+from .models import Task, TaskStatus, NodeCapability, NodeStatus
 from .config import get_config
 
 logger = logging.getLogger(__name__)
 
 
 class StateManager:
-    """状态管理器"""
+    """状态管理器
+    
+    提供分布式状态管理功能，包括：
+    - 任务状态管理和同步
+    - 节点状态监控
+    - 系统指标收集
+    - 事件通知机制
+    - Redis 缓存集成
+    """
     
     def __init__(self, redis_client=None, socketio=None):
         self.config = get_config()
@@ -35,6 +45,19 @@ class StateManager:
         self.task_callbacks: List[Callable[[str, Dict], None]] = []
         self.node_callbacks: List[Callable[[str, Dict], None]] = []
         self.metrics_callbacks: List[Callable[[Dict], None]] = []
+        
+        # 事件通知队列
+        self._event_queue: List[Dict[str, Any]] = []
+        self._event_lock = threading.Lock()
+        
+        # 启动后台任务
+        self._running = True
+        self._cleanup_thread = threading.Thread(target=self._cleanup_worker, daemon=True)
+        self._event_thread = threading.Thread(target=self._event_worker, daemon=True)
+        self._cleanup_thread.start()
+        self._event_thread.start()
+        
+        logger.info("状态管理器已启动")
     
     def update_task_status(self, task: Task):
         """更新任务状态"""
@@ -78,12 +101,13 @@ class StateManager:
             except Exception as e:
                 logger.error(f"WebSocket 通知失败: {e}")
         
-        # 触发回调
-        for callback in self.task_callbacks:
-            try:
-                callback(task.task_id, task_state)
-            except Exception as e:
-                logger.error(f"任务状态回调失败: {e}")
+        # 将事件加入队列进行异步处理
+        self._queue_event({
+            'type': 'task_status_changed',
+            'task_id': task.task_id,
+            'task_state': task_state,
+            'timestamp': datetime.now().isoformat()
+        })
         
         logger.debug(f"任务状态已更新: {task.task_id} -> {task.status.value}")
     
@@ -149,12 +173,13 @@ class StateManager:
             except Exception as e:
                 logger.error(f"WebSocket 节点通知失败: {e}")
         
-        # 触发回调
-        for callback in self.node_callbacks:
-            try:
-                callback(node.node_id, node_state)
-            except Exception as e:
-                logger.error(f"节点状态回调失败: {e}")
+        # 将事件加入队列进行异步处理
+        self._queue_event({
+            'type': 'node_status_changed',
+            'node_id': node.node_id,
+            'node_state': node_state,
+            'timestamp': datetime.now().isoformat()
+        })
     
     def get_node_status(self, node_id: str) -> Optional[Dict[str, Any]]:
         """获取节点状态"""
@@ -261,12 +286,12 @@ class StateManager:
             except Exception as e:
                 logger.error(f"Redis 系统指标更新失败: {e}")
         
-        # 触发回调
-        for callback in self.metrics_callbacks:
-            try:
-                callback(metrics)
-            except Exception as e:
-                logger.error(f"系统指标回调失败: {e}")
+        # 将事件加入队列进行异步处理
+        self._queue_event({
+            'type': 'system_metrics_updated',
+            'metrics': metrics,
+            'timestamp': datetime.now().isoformat()
+        })
     
     def get_system_metrics(self) -> Dict[str, Any]:
         """获取系统指标"""
@@ -339,3 +364,323 @@ class StateManager:
         # 目前只是记录日志
         logger.info(f"发送取消命令: 任务 {task_id} -> 节点 {node_id}")
         # TODO: 实现实际的取消命令发送逻辑
+    
+    def shutdown(self):
+        """关闭状态管理器"""
+        logger.info("正在关闭状态管理器...")
+        self._running = False
+        
+        # 等待后台线程结束
+        if self._cleanup_thread.is_alive():
+            self._cleanup_thread.join(timeout=5)
+        if self._event_thread.is_alive():
+            self._event_thread.join(timeout=5)
+        
+        logger.info("状态管理器已关闭")
+    
+    def _cleanup_worker(self):
+        """后台清理任务"""
+        while self._running:
+            try:
+                self.cleanup_expired_states()
+                time.sleep(self.config.task_cleanup_interval)
+            except Exception as e:
+                logger.error(f"状态清理任务失败: {e}")
+                time.sleep(60)  # 出错时等待1分钟再重试
+    
+    def _event_worker(self):
+        """后台事件处理任务"""
+        while self._running:
+            try:
+                self._process_event_queue()
+                time.sleep(1)  # 每秒处理一次事件队列
+            except Exception as e:
+                logger.error(f"事件处理任务失败: {e}")
+                time.sleep(5)  # 出错时等待5秒再重试
+    
+    def _process_event_queue(self):
+        """处理事件队列"""
+        events_to_process = []
+        
+        with self._event_lock:
+            if self._event_queue:
+                events_to_process = self._event_queue.copy()
+                self._event_queue.clear()
+        
+        for event in events_to_process:
+            try:
+                self._handle_event(event)
+            except Exception as e:
+                logger.error(f"处理事件失败: {event}, 错误: {e}")
+    
+    def _handle_event(self, event: Dict[str, Any]):
+        """处理单个事件"""
+        event_type = event.get('type')
+        
+        if event_type == 'task_status_changed':
+            self._notify_task_status_change(event)
+        elif event_type == 'node_status_changed':
+            self._notify_node_status_change(event)
+        elif event_type == 'system_metrics_updated':
+            self._notify_metrics_update(event)
+        else:
+            logger.warning(f"未知事件类型: {event_type}")
+    
+    def _notify_task_status_change(self, event: Dict[str, Any]):
+        """通知任务状态变更"""
+        task_id = event.get('task_id')
+        task_state = event.get('task_state')
+        
+        # WebSocket 实时通知
+        if self.socketio and task_state:
+            try:
+                self.socketio.emit('task_status_changed', {
+                    'task_id': task_id,
+                    'status': task_state.get('status'),
+                    'progress': task_state.get('progress', 0),
+                    'message': task_state.get('message', ''),
+                    'timestamp': task_state.get('updated_at'),
+                    'error_message': task_state.get('error_message')
+                })
+            except Exception as e:
+                logger.error(f"WebSocket 任务状态通知失败: {e}")
+        
+        # 触发回调
+        for callback in self.task_callbacks:
+            try:
+                callback(task_id, task_state)
+            except Exception as e:
+                logger.error(f"任务状态回调失败: {e}")
+    
+    def _notify_node_status_change(self, event: Dict[str, Any]):
+        """通知节点状态变更"""
+        node_id = event.get('node_id')
+        node_state = event.get('node_state')
+        
+        # WebSocket 实时通知
+        if self.socketio and node_state:
+            try:
+                self.socketio.emit('node_status_changed', {
+                    'node_id': node_id,
+                    'status': node_state.get('status'),
+                    'current_load': node_state.get('current_load', 0),
+                    'last_heartbeat': node_state.get('last_heartbeat'),
+                    'timestamp': datetime.now().isoformat()
+                })
+            except Exception as e:
+                logger.error(f"WebSocket 节点状态通知失败: {e}")
+        
+        # 触发回调
+        for callback in self.node_callbacks:
+            try:
+                callback(node_id, node_state)
+            except Exception as e:
+                logger.error(f"节点状态回调失败: {e}")
+    
+    def _notify_metrics_update(self, event: Dict[str, Any]):
+        """通知系统指标更新"""
+        metrics = event.get('metrics')
+        
+        # WebSocket 实时通知
+        if self.socketio and metrics:
+            try:
+                self.socketio.emit('system_metrics_updated', {
+                    'metrics': metrics,
+                    'timestamp': datetime.now().isoformat()
+                })
+            except Exception as e:
+                logger.error(f"WebSocket 系统指标通知失败: {e}")
+        
+        # 触发回调
+        for callback in self.metrics_callbacks:
+            try:
+                callback(metrics)
+            except Exception as e:
+                logger.error(f"系统指标回调失败: {e}")
+    
+    def _queue_event(self, event: Dict[str, Any]):
+        """将事件加入队列"""
+        with self._event_lock:
+            self._event_queue.append(event)
+    
+    def get_task_statistics(self) -> Dict[str, int]:
+        """获取任务统计信息"""
+        stats = {
+            'pending': 0,
+            'queued': 0,
+            'processing': 0,
+            'completed': 0,
+            'failed': 0,
+            'cancelled': 0,
+            'total': 0
+        }
+        
+        with self._lock:
+            for task_state in self.task_states.values():
+                status = task_state.get('status', 'unknown')
+                if status in stats:
+                    stats[status] += 1
+                stats['total'] += 1
+        
+        return stats
+    
+    def get_node_statistics(self) -> Dict[str, Any]:
+        """获取节点统计信息"""
+        stats = {
+            'online': 0,
+            'offline': 0,
+            'busy': 0,
+            'error': 0,
+            'total': 0,
+            'total_load': 0,
+            'total_capacity': 0
+        }
+        
+        with self._lock:
+            for node_state in self.node_states.values():
+                status = node_state.get('status', 'unknown')
+                if status in stats:
+                    stats[status] += 1
+                stats['total'] += 1
+                stats['total_load'] += node_state.get('current_load', 0)
+                stats['total_capacity'] += node_state.get('max_concurrent_tasks', 0)
+        
+        return stats
+    
+    def get_queue_statistics(self) -> Dict[str, Dict[str, int]]:
+        """获取队列统计信息"""
+        queue_stats = {}
+        
+        with self._lock:
+            # 按队列统计任务数量
+            for task_state in self.task_states.values():
+                queue_name = task_state.get('queue_name', 'unknown')
+                status = task_state.get('status', 'unknown')
+                
+                if queue_name not in queue_stats:
+                    queue_stats[queue_name] = {
+                        'pending': 0,
+                        'processing': 0,
+                        'completed': 0,
+                        'failed': 0,
+                        'total': 0
+                    }
+                
+                if status in queue_stats[queue_name]:
+                    queue_stats[queue_name][status] += 1
+                queue_stats[queue_name]['total'] += 1
+        
+        return queue_stats
+    
+    def get_system_status(self) -> Dict[str, Any]:
+        """获取系统整体状态"""
+        return {
+            'task_statistics': self.get_task_statistics(),
+            'node_statistics': self.get_node_statistics(),
+            'queue_statistics': self.get_queue_statistics(),
+            'system_metrics': self.get_system_metrics(),
+            'timestamp': datetime.now().isoformat()
+        }
+    
+    def subscribe_to_task_events(self, callback: Callable[[str, Dict], None]):
+        """订阅任务事件"""
+        self.add_task_callback(callback)
+        logger.debug("已添加任务事件订阅")
+    
+    def subscribe_to_node_events(self, callback: Callable[[str, Dict], None]):
+        """订阅节点事件"""
+        self.add_node_callback(callback)
+        logger.debug("已添加节点事件订阅")
+    
+    def subscribe_to_metrics_events(self, callback: Callable[[Dict], None]):
+        """订阅系统指标事件"""
+        self.add_metrics_callback(callback)
+        logger.debug("已添加系统指标事件订阅")
+    
+    def unsubscribe_from_task_events(self, callback: Callable[[str, Dict], None]):
+        """取消订阅任务事件"""
+        if callback in self.task_callbacks:
+            self.task_callbacks.remove(callback)
+            logger.debug("已移除任务事件订阅")
+    
+    def unsubscribe_from_node_events(self, callback: Callable[[str, Dict], None]):
+        """取消订阅节点事件"""
+        if callback in self.node_callbacks:
+            self.node_callbacks.remove(callback)
+            logger.debug("已移除节点事件订阅")
+    
+    def unsubscribe_from_metrics_events(self, callback: Callable[[Dict], None]):
+        """取消订阅系统指标事件"""
+        if callback in self.metrics_callbacks:
+            self.metrics_callbacks.remove(callback)
+            logger.debug("已移除系统指标事件订阅")
+    
+    def batch_update_task_states(self, tasks: List[Task]):
+        """批量更新任务状态"""
+        updated_tasks = []
+        
+        for task in tasks:
+            try:
+                self.update_task_status(task)
+                updated_tasks.append(task.task_id)
+            except Exception as e:
+                logger.error(f"批量更新任务状态失败 {task.task_id}: {e}")
+        
+        logger.info(f"批量更新了 {len(updated_tasks)} 个任务状态")
+        return updated_tasks
+    
+    def batch_update_node_states(self, nodes: List[NodeCapability]):
+        """批量更新节点状态"""
+        updated_nodes = []
+        
+        for node in nodes:
+            try:
+                self.update_node_status(node)
+                updated_nodes.append(node.node_id)
+            except Exception as e:
+                logger.error(f"批量更新节点状态失败 {node.node_id}: {e}")
+        
+        logger.info(f"批量更新了 {len(updated_nodes)} 个节点状态")
+        return updated_nodes
+    
+    def get_tasks_by_node(self, node_id: str) -> List[Dict[str, Any]]:
+        """获取指定节点的任务列表"""
+        with self._lock:
+            return [
+                state.copy() for state in self.task_states.values()
+                if state.get('assigned_node') == node_id
+            ]
+    
+    def get_tasks_by_queue(self, queue_name: str) -> List[Dict[str, Any]]:
+        """获取指定队列的任务列表"""
+        with self._lock:
+            return [
+                state.copy() for state in self.task_states.values()
+                if state.get('queue_name') == queue_name
+            ]
+    
+    def get_active_tasks(self) -> List[Dict[str, Any]]:
+        """获取活跃任务列表（排队中和处理中）"""
+        active_statuses = [TaskStatus.QUEUED.value, TaskStatus.PROCESSING.value]
+        with self._lock:
+            return [
+                state.copy() for state in self.task_states.values()
+                if state.get('status') in active_statuses
+            ]
+    
+    def get_completed_tasks(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """获取已完成任务列表"""
+        completed_statuses = [TaskStatus.COMPLETED.value, TaskStatus.FAILED.value, TaskStatus.CANCELLED.value]
+        with self._lock:
+            completed_tasks = [
+                state.copy() for state in self.task_states.values()
+                if state.get('status') in completed_statuses
+            ]
+            
+            # 按更新时间排序，最新的在前
+            completed_tasks.sort(
+                key=lambda x: x.get('updated_at', ''),
+                reverse=True
+            )
+            
+            return completed_tasks[:limit]
