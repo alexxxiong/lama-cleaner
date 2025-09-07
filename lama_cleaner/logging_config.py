@@ -20,6 +20,9 @@ import time
 import sqlite3
 from typing import Union
 import uuid
+from lama_cleaner.performance_monitor import performance_monitor, track_performance
+from lama_cleaner.error_tracker import error_tracker, ErrorContext, ErrorCategory, ErrorSeverity
+from lama_cleaner.privacy_protector import privacy_protector, PrivacyConfig, protect_message, protect_data
 
 
 @dataclass
@@ -225,6 +228,17 @@ class StructuredLogStorage:
         entry_id = str(uuid.uuid4())
         
         try:
+            # 处理loguru的record格式
+            timestamp = record.get('time')
+            if timestamp:
+                timestamp = timestamp.isoformat() if hasattr(timestamp, 'isoformat') else str(timestamp)
+            
+            level = record.get('level')
+            if level and hasattr(level, 'name'):
+                level = level.name
+            elif level:
+                level = str(level)
+                
             with sqlite3.connect(self.db_path) as conn:
                 conn.execute("""
                     INSERT INTO log_entries 
@@ -232,8 +246,8 @@ class StructuredLogStorage:
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     entry_id,
-                    record.get('time'),
-                    record.get('level'),
+                    timestamp,
+                    level,
                     record.get('name'),
                     record.get('function'),
                     record.get('line'),
@@ -242,7 +256,8 @@ class StructuredLogStorage:
                 ))
                 
         except Exception as e:
-            logger.error(f"存储日志条目失败: {e}")
+            # 避免在日志处理器中再次记录错误，防止递归
+            pass
             
         return entry_id
         
@@ -361,18 +376,23 @@ class StructuredLogStorage:
         cutoff_date = datetime.now() - timedelta(days=retention_days)
         
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.execute(
-                    "DELETE FROM log_entries WHERE timestamp < ?",
-                    (cutoff_date.isoformat(),)
-                )
-                deleted_count = cursor.rowcount
-                
-                # 优化数据库
-                conn.execute("VACUUM")
-                
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.execute(
+                "DELETE FROM log_entries WHERE timestamp < ?",
+                (cutoff_date.isoformat(),)
+            )
+            deleted_count = cursor.rowcount
+            conn.commit()
+            conn.close()
+            
+            # 在单独的连接中执行VACUUM
+            conn = sqlite3.connect(self.db_path)
+            conn.execute("VACUUM")
+            conn.close()
+            
+            if deleted_count > 0:
                 logger.info(f"清理了 {deleted_count} 条旧日志记录")
-                return deleted_count
+            return deleted_count
                 
         except Exception as e:
             logger.error(f"清理日志记录失败: {e}")
@@ -507,6 +527,8 @@ class LoggerManager:
         self.file_manager: Optional[LogFileManager] = None
         self.structured_storage: Optional[StructuredLogStorage] = None
         self.search_engine: Optional[LogSearchEngine] = None
+        self.privacy_enabled = True  # 默认启用隐私保护
+        self.privacy_config = PrivacyConfig()  # 隐私保护配置
         
     def setup_logging(self, level: str = "INFO", enable_file_logging: bool = True, 
                      config: Optional[LoggingConfig] = None) -> None:
@@ -626,12 +648,23 @@ class LoggerManager:
             
             return fmt
         
+        # 添加带隐私保护的过滤器
+        def privacy_filter(record):
+            if self.privacy_enabled:
+                # 保护消息中的敏感信息
+                record["message"] = protect_message(record["message"])
+                # 保护额外数据
+                if "extra" in record and isinstance(record["extra"], dict):
+                    record["extra"] = protect_data(record["extra"])
+            return True
+            
         logger.add(
             sys.stdout,
             format=format_record,
             level=level,
             colorize=True,
             backtrace=True,
+            filter=privacy_filter,
             diagnose=True,
             enqueue=True  # 线程安全
         )
@@ -658,6 +691,14 @@ class LoggerManager:
         # 配置主日志文件
         log_file_path = log_dir / self.config.filename_pattern
         
+        # 文件日志的隐私保护过滤器
+        def file_privacy_filter(record):
+            if self.privacy_enabled:
+                record["message"] = protect_message(record["message"])
+                if "extra" in record and isinstance(record["extra"], dict):
+                    record["extra"] = protect_data(record["extra"])
+            return True
+            
         logger.add(
             log_file_path,
             format=file_format,
@@ -668,7 +709,8 @@ class LoggerManager:
             backtrace=True,
             diagnose=True,
             enqueue=True,  # 线程安全
-            serialize=self.config.structured_logging  # JSON序列化
+            serialize=self.config.structured_logging,  # JSON序列化
+            filter=file_privacy_filter
         )
         
         # 启动文件管理器
@@ -688,9 +730,11 @@ class LoggerManager:
         self.search_engine = LogSearchEngine(self.structured_storage)
         
         # 添加自定义处理器来存储结构化日志
-        def structured_handler(record):
+        def structured_handler(message):
             if self.structured_storage:
-                self.structured_storage.store_log_entry(record)
+                # message.record 包含完整的日志记录信息
+                record_dict = message.record
+                self.structured_storage.store_log_entry(record_dict)
                 
         logger.add(
             structured_handler,
@@ -703,17 +747,7 @@ class LoggerManager:
         
     def _get_structured_format(self) -> str:
         """获取结构化日志格式"""
-        return (
-            "{"
-            '"timestamp": "{time:YYYY-MM-DD HH:mm:ss.SSS}", '
-            '"level": "{level}", '
-            '"module": "{name}", '
-            '"line": {line}, '
-            '"function": "{function}", '
-            '"message": "{message}", '
-            '"extra": {extra}'
-            "}"
-        )
+        return "{message}"  # 使用serialize=True时，loguru会自动处理JSON格式
         
     def get_logger(self, name: str):
         """获取指定模块的日志器"""
@@ -767,6 +801,9 @@ class LoggerManager:
         if self.file_manager:
             self.file_manager.stop_cleanup_scheduler()
             
+        # 停止性能监控
+        performance_monitor.stop()
+        
         logger.info("日志管理器已关闭")
         
     def export_logs(self, output_path: str, date_range: Optional[tuple] = None) -> bool:
@@ -826,6 +863,88 @@ class LoggerManager:
             return self.search_engine.get_error_summary(hours)
         return {}
         
+    def start_performance_monitoring(self, interval: int = 5) -> None:
+        """启动性能监控"""
+        try:
+            performance_monitor.resource_monitor.interval = interval
+            performance_monitor.start()
+            logger.info(f"性能监控已启动，监控间隔: {interval}秒")
+        except Exception as e:
+            logger.error(f"启动性能监控失败: {e}")
+            
+    def stop_performance_monitoring(self) -> None:
+        """停止性能监控"""
+        try:
+            performance_monitor.stop()
+            logger.info("性能监控已停止")
+        except Exception as e:
+            logger.error(f"停止性能监控失败: {e}")
+            
+    def get_performance_status(self) -> Dict[str, Any]:
+        """获取性能监控状态"""
+        return performance_monitor.get_status()
+        
+    def get_current_metrics(self) -> Dict[str, Any]:
+        """获取当前系统资源指标"""
+        return performance_monitor.get_metrics()
+        
+    def log_performance_report(self) -> None:
+        """记录性能报告到日志"""
+        try:
+            report = performance_monitor.performance_tracker.get_performance_report()
+            
+            logger.info("=" * 50)
+            logger.info("📊 性能监控报告")
+            logger.info("=" * 50)
+            
+            # 资源使用摘要
+            metrics = self.get_current_metrics()
+            logger.info("🖥️ 系统资源使用:")
+            logger.info(f"  • CPU: {metrics['cpu']['percent']:.1f}% ({metrics['cpu']['count']}核心)")
+            logger.info(f"  • 内存: {metrics['memory']['percent']:.1f}% "
+                       f"({metrics['memory']['used']:.1f}GB / {metrics['memory']['total']:.1f}GB)")
+            logger.info(f"  • 磁盘: {metrics['disk']['percent']:.1f}% "
+                       f"({metrics['disk']['used']:.1f}GB / {metrics['disk']['total']:.1f}GB)")
+            
+            # GPU信息
+            if 'gpu' in metrics and metrics['gpu']:
+                logger.info("🎮 GPU使用:")
+                for gpu in metrics['gpu']:
+                    logger.info(f"  • GPU {gpu['id']}: {gpu['name']}")
+                    logger.info(f"    负载: {gpu['load']:.1f}%, "
+                               f"内存: {gpu['memory_percent']:.1f}% "
+                               f"({gpu['memory_used']}MB / {gpu['memory_total']}MB)")
+            
+            # 操作性能统计
+            if report['operations']:
+                logger.info("\n⚡ 操作性能统计:")
+                for name, stats in report['operations'].items():
+                    logger.info(f"  • {name}:")
+                    logger.info(f"    - 执行次数: {stats['count']}")
+                    logger.info(f"    - 平均耗时: {stats['avg_time']:.3f}秒")
+                    logger.info(f"    - 最小/最大: {stats['min_time']:.3f}s / {stats['max_time']:.3f}s")
+                    if stats['error_rate'] > 0:
+                        logger.warning(f"    - 错误率: {stats['error_rate']:.1f}%")
+            
+            # 性能瓶颈
+            if report['bottlenecks']:
+                logger.warning("\n⚠️ 检测到性能瓶颈:")
+                for bottleneck in report['bottlenecks']:
+                    severity_emoji = "🔴" if bottleneck['severity'] == 'high' else "🟡"
+                    logger.warning(f"  {severity_emoji} {bottleneck['operation']}: "
+                                 f"平均耗时 {bottleneck['avg_time']:.2f}秒")
+            
+            # 建议
+            if report['recommendations']:
+                logger.info("\n💡 优化建议:")
+                for rec in report['recommendations']:
+                    logger.info(f"  • {rec}")
+            
+            logger.info("=" * 50)
+            
+        except Exception as e:
+            logger.error(f"生成性能报告失败: {e}")
+    
     def export_structured_logs(self, output_path: str, 
                               start_time: Optional[datetime] = None,
                               end_time: Optional[datetime] = None) -> bool:
@@ -845,6 +964,132 @@ class LoggerManager:
         if self.structured_storage:
             return self.structured_storage.cleanup_old_entries(retention_days)
         return 0
+        
+    def track_error(self, exception: Exception, 
+                   operation: Optional[str] = None,
+                   user_id: Optional[str] = None,
+                   session_id: Optional[str] = None,
+                   **kwargs) -> str:
+        """追踪错误"""
+        context = ErrorContext(
+            user_id=user_id,
+            session_id=session_id,
+            operation=operation,
+            custom_data=kwargs
+        )
+        return error_tracker.track_error(exception, context=context)
+        
+    def add_operation_log(self, operation: str, details: Optional[Dict[str, Any]] = None):
+        """添加操作日志到错误追踪器历史"""
+        error_tracker.add_operation(operation, details)
+        
+    def get_error_report(self, hours: int = 24) -> Dict[str, Any]:
+        """获取错误报告"""
+        return error_tracker.get_error_report(hours)
+        
+    def analyze_error_patterns(self) -> Dict[str, Any]:
+        """分析错误模式"""
+        from lama_cleaner.error_tracker import error_analyzer
+        return error_analyzer.analyze_patterns()
+        
+    def export_error_report(self, filepath: str) -> bool:
+        """导出错误报告"""
+        return error_tracker.export_errors(filepath)
+        
+    def log_error_report(self, hours: int = 24) -> None:
+        """记录错误报告到日志"""
+        try:
+            report = self.get_error_report(hours)
+            
+            logger.info("=" * 50)
+            logger.info("🔍 错误追踪报告")
+            logger.info("=" * 50)
+            
+            # 摘要信息
+            summary = report.get('summary', {})
+            logger.info("📊 错误摘要:")
+            logger.info(f"  • 总错误数: {summary.get('total_errors', 0)}")
+            logger.info(f"  • 唯一错误: {summary.get('unique_errors', 0)}")
+            logger.info(f"  • 严重错误: {summary.get('critical_count', 0)}")
+            logger.info(f"  • 未解决数: {summary.get('unresolved_count', 0)}")
+            
+            # 按类别统计
+            by_category = report.get('by_category', {})
+            if by_category:
+                logger.info("\n📁 按类别统计:")
+                for category, count in sorted(by_category.items(), key=lambda x: x[1], reverse=True):
+                    logger.info(f"  • {category}: {count}")
+            
+            # 按严重程度统计
+            by_severity = report.get('by_severity', {})
+            if by_severity:
+                logger.info("\n⚠️ 按严重程度:")
+                for severity, count in by_severity.items():
+                    logger.info(f"  • {severity}: {count}")
+            
+            # 高频错误
+            top_errors = report.get('top_errors', {})
+            if top_errors:
+                logger.info("\n🔝 高频错误:")
+                for error, count in list(top_errors.items())[:5]:
+                    logger.info(f"  • {error}: {count}次")
+            
+            # 错误模式分析
+            patterns = self.analyze_error_patterns()
+            if patterns.get('patterns'):
+                logger.info("\n🔬 错误模式:")
+                for pattern in patterns['patterns']:
+                    logger.info(f"  • {pattern.get('description', '未知模式')}")
+                    if 'recommendation' in pattern:
+                        logger.info(f"    建议: {pattern['recommendation']}")
+            
+            logger.info("=" * 50)
+            
+        except Exception as e:
+            logger.error(f"生成错误报告失败: {e}")
+            
+    def enable_privacy_protection(self, config: Optional[PrivacyConfig] = None):
+        """启用隐私保护"""
+        self.privacy_enabled = True
+        if config:
+            self.privacy_config = config
+            privacy_protector.config = config
+        logger.info("✅ 隐私保护已启用")
+        
+    def disable_privacy_protection(self):
+        """禁用隐私保护"""
+        self.privacy_enabled = False
+        logger.warning("⚠️ 隐私保护已禁用")
+        
+    def configure_privacy(self, **kwargs):
+        """配置隐私保护选项"""
+        for key, value in kwargs.items():
+            if hasattr(self.privacy_config, key):
+                setattr(self.privacy_config, key, value)
+        privacy_protector.config = self.privacy_config
+        logger.info("隐私保护配置已更新")
+        
+    def add_log_user(self, user_id: str, role: str = 'viewer'):
+        """添加日志访问用户"""
+        privacy_protector.access_controller.add_user(user_id, role)
+        
+    def check_log_access(self, user_id: str, action: str) -> bool:
+        """检查用户日志访问权限"""
+        return privacy_protector.check_access(user_id, action)
+        
+    def protect_log_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """保护日志数据"""
+        if self.privacy_enabled:
+            return privacy_protector.protect_log_data(data)
+        return data
+        
+    def get_privacy_report(self) -> Dict[str, Any]:
+        """获取隐私保护报告"""
+        return privacy_protector.export_privacy_report()
+        
+    def get_audit_log(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """获取访问审计日志"""
+        return privacy_protector.get_audit_log(limit)
         
     def show_startup_banner(self, version: str = "1.0.0", mode: str = "分布式处理", 
                             host: str = "localhost", port: int = 8080) -> None:

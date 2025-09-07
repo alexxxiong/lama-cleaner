@@ -19,8 +19,10 @@ import cv2
 import numpy as np
 import torch
 from PIL import Image
-from lama_cleaner.logging_config import setup_logging, get_logger, show_startup_banner, log_shutdown
+from lama_cleaner.logging_config import setup_logging, get_logger, show_startup_banner, log_shutdown, LoggerManager
 from lama_cleaner.api_logging import init_api_logging, log_image_processing_start, log_image_processing_complete, log_image_processing_failed, log_model_switch
+from lama_cleaner.performance_monitor import performance_monitor, track_performance, measure_performance
+from lama_cleaner.error_tracker import ErrorContext, ErrorCategory, ErrorSeverity
 
 from lama_cleaner.const import SD15_MODELS
 from lama_cleaner.file_manager import FileManager
@@ -217,6 +219,7 @@ def media_thumbnail_file(tab, filename):
 
 
 @app.route("/inpaint", methods=["POST"])
+@track_performance("image_inpainting")
 def process():
     # 生成任务ID用于追踪
     task_id = str(uuid.uuid4())[:8]
@@ -323,12 +326,22 @@ def process():
         # 记录处理失败
         log_image_processing_failed(task_id=task_id, error=error_msg)
         
+        # 追踪错误
+        log_manager = LoggerManager()
+        error_id = log_manager.track_error(
+            e,
+            operation="image_inpainting",
+            task_id=task_id,
+            model=model.name,
+            image_size=str(image.shape) if hasattr(image, 'shape') else 'unknown'
+        )
+        
         if "CUDA out of memory. " in error_msg:
             # NOTE: the string may change?
             return "CUDA out of memory", 500
         else:
             logger.exception(e)
-            return f"{error_msg}", 500
+            return f"{error_msg} (Error ID: {error_id})", 500
     finally:
         logger.info(f"process time: {(time.time() - start) * 1000}ms")
         torch_gc()
@@ -368,6 +381,7 @@ def process():
 
 
 @app.route("/run_plugin", methods=["POST"])
+@track_performance("plugin_execution")
 def run_plugin():
     form = request.form
     files = request.files
@@ -473,6 +487,7 @@ def get_is_desktop():
 
 
 @app.route("/model", methods=["POST"])
+@track_performance("model_switch")
 def switch_model():
     if is_disable_model_switch:
         return "Switch model is disabled", 400
@@ -584,6 +599,27 @@ def main(args):
     setup_logging(level="INFO")
     logger = get_logger("server")
     
+    # 检查是否启用分布式模式
+    if hasattr(args, 'distributed') and args.distributed:
+        logger.info("🚀 启动分布式调度器...")
+        from lama_cleaner.distributed.scheduler import DistributedScheduler
+        
+        # 设置环境变量
+        os.environ['LAMA_CLEANER_DISTRIBUTED'] = 'true'
+        
+        # 显示启动横幅
+        show_startup_banner(
+            version="1.0.0",
+            mode="分布式调度器",
+            host=args.host,
+            port=args.port
+        )
+        
+        # 启动调度器
+        scheduler = DistributedScheduler()
+        scheduler.start()
+        return
+    
     # 显示启动横幅
     show_startup_banner(
         version="1.0.0",
@@ -682,3 +718,8 @@ def main(args):
             debug=args.debug,
             allow_unsafe_werkzeug=True,
         )
+
+if __name__ == "__main__":
+    from lama_cleaner.parse_args import parse_args
+    args = parse_args()
+    main(args)

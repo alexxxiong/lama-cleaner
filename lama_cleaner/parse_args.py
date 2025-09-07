@@ -156,6 +156,7 @@ def parse_args():
 
     # useless args
     parser.add_argument("--debug", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--distributed", action="store_true", help="启用分布式处理模式")
     parser.add_argument("--hf_access_token", default="", help=argparse.SUPPRESS)
     parser.add_argument(
         "--sd-disable-nsfw", action="store_true", help=argparse.SUPPRESS

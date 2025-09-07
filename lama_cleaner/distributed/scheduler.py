@@ -22,6 +22,7 @@ from lama_cleaner.distributed.task_manager import TaskManager
 from lama_cleaner.distributed.queue_manager import QueueManager
 from lama_cleaner.distributed.node_manager import NodeManager
 from lama_cleaner.distributed.logging import get_scheduler_logger
+from lama_cleaner.performance_monitor import performance_monitor, track_performance, measure_performance
 
 
 class DistributedScheduler:
@@ -93,6 +94,10 @@ class DistributedScheduler:
             # 启动各个管理器
             self.logger.info("🔧 启动核心服务组件", action="services_start")
             
+            # 启动性能监控
+            performance_monitor.start()
+            self.logger.success("📊 性能监控已启动", action="performance_monitor_started")
+            
             # 这里应该启动任务管理器的服务
             # self.task_manager.start()
             self.logger.success("✅ 任务管理器服务已启动", action="task_manager_started")
@@ -141,9 +146,14 @@ class DistributedScheduler:
         # self.queue_manager.stop()
         self.logger.info("  ├─ ✅ 队列管理器已停止")
         
-        self.logger.info("  └─ 停止任务管理器...")
+        self.logger.info("  ├─ 停止任务管理器...")
         # self.task_manager.stop()
-        self.logger.info("  └─ ✅ 任务管理器已停止")
+        self.logger.info("  ├─ ✅ 任务管理器已停止")
+        
+        # 停止性能监控并生成报告
+        self.logger.info("  └─ 生成性能报告...")
+        performance_monitor.stop()
+        self.logger.info("  └─ ✅ 性能监控已停止")
         
         log_shutdown("scheduler")
         self.logger.success("调度器已安全关闭")
@@ -169,16 +179,27 @@ class DistributedScheduler:
                 self.logger.warning("⏳ 系统将在5秒后重试...")
                 time.sleep(5)  # 出错后稍长时间休眠
                 
+    @track_performance("system_health_check")
     def _check_system_health(self):
         """检查系统健康状态"""
-        # 这里实现系统健康检查逻辑
-        pass
+        # 获取当前系统指标
+        metrics = performance_monitor.get_metrics()
         
+        # 检查CPU使用率
+        if metrics['cpu']['percent'] > 90:
+            self.logger.warning(f"⚠️ CPU使用率过高: {metrics['cpu']['percent']:.1f}%")
+            
+        # 检查内存使用率
+        if metrics['memory']['percent'] > 85:
+            self.logger.warning(f"⚠️ 内存使用率过高: {metrics['memory']['percent']:.1f}%")
+        
+    @track_performance("task_scheduling")    
     def _process_task_scheduling(self):
         """处理任务调度逻辑"""
         # 这里实现任务调度逻辑
         pass
         
+    @track_performance("node_management")
     def _manage_nodes(self):
         """管理节点状态"""
         # 这里实现节点管理逻辑

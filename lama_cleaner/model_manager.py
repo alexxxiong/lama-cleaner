@@ -5,6 +5,8 @@ from typing import Dict, Optional
 
 from loguru import logger
 from lama_cleaner.distributed.logging import get_model_manager_logger
+from lama_cleaner.performance_monitor import track_performance, measure_performance
+from lama_cleaner.error_tracker import error_tracker, ErrorContext, ErrorCategory, ErrorSeverity
 
 from lama_cleaner.const import SD15_MODELS
 from lama_cleaner.helper import switch_mps_device
@@ -50,6 +52,7 @@ class ModelManager:
         
         self.model = self.init_model(name, device, **kwargs)
 
+    @track_performance("model_initialization")
     def init_model(self, name: str, device, **kwargs):
         # 记录模型加载开始
         self.logger.log_model_loading_start(
@@ -99,6 +102,7 @@ class ModelManager:
         else:
             raise NotImplementedError(f"Not supported model: {name}")
 
+    @track_performance("model_inference")
     def __call__(self, image, mask, config: Config):
         self.switch_controlnet_method(control_method=config.controlnet_method)
         
@@ -137,8 +141,20 @@ class ModelManager:
                             model_name=self.name,
                             error=str(e),
                             inference_time=inference_time)
+            
+            # 追踪错误
+            context = ErrorContext(
+                operation="model_inference",
+                custom_data={
+                    'model_name': self.name,
+                    'input_shape': input_shape,
+                    'inference_time': inference_time
+                }
+            )
+            error_tracker.track_error(e, context=context, category=ErrorCategory.MODEL)
             raise
 
+    @track_performance("model_switch")
     def switch(self, new_name: str, **kwargs):
         if new_name == self.name:
             return
@@ -226,14 +242,6 @@ class ModelManager:
             self.logger.debug(f"获取GPU内存信息失败: {e}")
         
         return None
-            elif (
-                not self.model.is_native_control_inpaint
-                and control_method == "control_v11p_sd15_inpaint"
-            ):
-                raise RuntimeError(
-                    f"--sd-local-model-path load an inpainting SD model, "
-                    f"to use {control_method} you should load a norml SD model"
-                )
 
         del self.model
         torch_gc()
